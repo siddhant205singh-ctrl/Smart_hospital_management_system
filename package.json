@@ -1,0 +1,10 @@
+{
+  "name": "smartcare-workspace",
+  "version": "1.0.0",
+  "description": "SmartCare Smart Hospital Management System with LifeShare Voluntary Blood Donor Network",
+  "scripts": {
+    "start:backend": "cd backend && npm run dev",
+    "start:frontend": "cd frontend && npm run dev",
+    "seed": "cd backend && npm run seed"
+  }
+}

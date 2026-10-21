@@ -1,0 +1,42 @@
+{
+  "nav": {
+    "home": "Home",
+    "doctors": "Find Doctors",
+    "bloodBank": "Blood Availability",
+    "lifeShare": "LifeShare Donor",
+    "myQueue": "Live Queue",
+    "timeline": "Health Timeline",
+    "consent": "Consent Manager",
+    "dashboard": "Dashboard",
+    "login": "Sign In",
+    "register": "Register",
+    "logout": "Sign Out"
+  },
+  "hero": {
+    "badge": "Smart Hospital Management & Real-time Queue",
+    "title": "Zero Waiting Time.",
+    "titleHighlight": "Smarter Healthcare.",
+    "subtitle": "SmartCare predicts your exact doctor consultation turn, syncs real-time queue tokens across multiple hospitals, and rewards voluntary blood donors with priority family care.",
+    "ctaBook": "Find Doctors & Book",
+    "ctaQueue": "Track Live Queue",
+    "ctaDonor": "Join LifeShare"
+  },
+  "queue": {
+    "liveTracker": "Live Queue Tracker",
+    "yourToken": "Your Token Number",
+    "currentlyServing": "Now Serving Token",
+    "patientsAhead": "Patients Ahead",
+    "estWait": "Estimated Wait Time",
+    "leaveNowAlert": "Leave Now Alert",
+    "leaveNowMessage": "Based on traffic and check-in buffer, it is time to depart!"
+  },
+  "lifeshare": {
+    "title": "LifeShare Voluntary Blood Donor Program",
+    "subtitle": "Give Blood, Save Lives, Protect Your Family",
+    "eligibility": "Next Eligible Donation",
+    "daysLeft": "Days Left",
+    "ready": "You are eligible to donate today!",
+    "communityCard": "Community Health Card",
+    "priorityAccess": "Priority Family Blood Access"
+  }
+}
