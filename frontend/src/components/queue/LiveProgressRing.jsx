@@ -17,9 +17,9 @@ export default function LiveProgressRing({
   const strokeDashoffset = 283 - (283 * progressPercent) / 100;
 
   return (
-    <div className="flex flex-col items-center justify-center p-6 bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-100 dark:border-slate-800">
+    <div className="flex flex-col items-center justify-center p-4 sm:p-6 bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-100 dark:border-slate-800">
       {/* Big Animated SVG Ring */}
-      <div className="relative w-64 h-64 flex items-center justify-center">
+      <div className="relative w-52 h-52 sm:w-64 sm:h-64 flex items-center justify-center">
         <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
           {/* Background circle */}
           <circle
@@ -47,17 +47,17 @@ export default function LiveProgressRing({
         </svg>
 
         {/* Center Content */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-          <span className="text-[11px] uppercase tracking-wider font-bold text-teal-600 dark:text-teal-400">
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-2">
+          <span className="text-[10px] sm:text-[11px] uppercase tracking-wider font-bold text-teal-600 dark:text-teal-400">
             Your Digital Token
           </span>
-          <span className="text-6xl font-black text-slate-900 dark:text-white tracking-tight my-1">
+          <span className="text-4xl sm:text-6xl font-black text-slate-900 dark:text-white tracking-tight my-0.5 sm:my-1">
             #{myToken}
           </span>
-          <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-teal-50 text-teal-700 dark:bg-teal-950 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
+          <span className="text-[11px] sm:text-xs font-semibold px-2 sm:px-2.5 py-0.5 rounded-full bg-teal-50 text-teal-700 dark:bg-teal-950 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
             {tokenCode}
           </span>
-          <span className="text-[11px] text-slate-400 mt-2 capitalize">
+          <span className="text-[10px] sm:text-[11px] text-slate-400 mt-1 sm:mt-2 capitalize">
             Status: <strong className="text-slate-700 dark:text-slate-300">{status.replace('_', ' ')}</strong>
           </span>
         </div>

@@ -132,7 +132,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* KPI Stats Row */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
         <div className="p-5 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
           <span className="text-xs text-slate-400 block">Total In Flow Today</span>
           <span className="text-3xl font-black text-slate-900 dark:text-white mt-1 block">
@@ -190,7 +190,7 @@ export default function AdminDashboard() {
             </span>
           </div>
 
-          <div className="h-64 w-full">
+          <div className="h-56 sm:h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={analytics?.waitTimeTrends || []}>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
@@ -212,7 +212,7 @@ export default function AdminDashboard() {
             <p className="text-xs text-slate-400">Patient arrival density across OPD time slots</p>
           </div>
 
-          <div className="h-64 w-full">
+          <div className="h-56 sm:h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={analytics?.hourlyDistribution || []}>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
@@ -368,7 +368,7 @@ export default function AdminDashboard() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="font-semibold block mb-1">Service Category</label>
                 <select

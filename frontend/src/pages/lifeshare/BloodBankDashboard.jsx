@@ -127,8 +127,8 @@ export default function BloodBankDashboard() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+        <div className="overflow-x-auto -mx-6 px-6 sm:mx-0 sm:px-0">
+          <table className="w-full text-left text-xs min-w-[700px]">
             <thead>
               <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400">
                 <th className="pb-3">Request ID</th>
@@ -223,7 +223,7 @@ export default function BloodBankDashboard() {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+        <div className="grid grid-cols-4 sm:grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-3">
           {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map((bg) => {
             const count = inventory
               .filter(i => i.bloodGroup === bg)
@@ -246,7 +246,7 @@ export default function BloodBankDashboard() {
       {/* Record Verified Donation Modal */}
       {showDonationModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-200 dark:border-slate-800">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95">
             <h3 className="font-bold text-base text-slate-900 dark:text-white">Record Verified Blood Donation</h3>
             <p className="text-xs text-slate-500 mt-1">Only Blood Bank Officers can log verified physical donations.</p>
 

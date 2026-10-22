@@ -89,7 +89,7 @@ export default function PatientDashboard() {
 
           <Link
             to="/my-queue"
-            className="px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-md transition flex items-center space-x-2 flex-shrink-0"
+            className="w-full md:w-auto px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-md transition flex items-center justify-center space-x-2 flex-shrink-0"
           >
             <Clock className="w-4 h-4" />
             <span>Track Live Queue & Turn</span>

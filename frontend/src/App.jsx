@@ -2,6 +2,7 @@ import React from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
+import MobileBottomNav from './components/layout/MobileBottomNav';
 import SmartCareChatWidget from './components/chatbot/SmartCareChatWidget';
 
 // Pages
@@ -30,7 +31,7 @@ export default function App() {
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 font-sans selection:bg-teal-500 selection:text-white">
       {!isDisplayScreen && <Navbar />}
 
-      <main className="flex-1">
+      <main className="flex-1 pb-16 md:pb-0">
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
@@ -53,6 +54,7 @@ export default function App() {
       </main>
 
       {!isDisplayScreen && <Footer />}
+      {!isDisplayScreen && <MobileBottomNav />}
       {!isDisplayScreen && <SmartCareChatWidget />}
     </div>
   );

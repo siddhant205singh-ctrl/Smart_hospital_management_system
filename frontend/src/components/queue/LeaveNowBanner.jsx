@@ -54,7 +54,7 @@ export default function LeaveNowBanner({
 
   return (
     <div
-      className={`p-5 rounded-3xl border transition-all duration-300 ${
+      className={`p-4 sm:p-5 rounded-3xl border transition-all duration-300 ${
         isUrgentLeave
           ? 'bg-gradient-to-r from-amber-500/10 via-rose-500/10 to-amber-500/10 border-amber-400 dark:border-amber-600'
           : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
@@ -62,19 +62,19 @@ export default function LeaveNowBanner({
     >
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         {/* Left: Indicator & Time */}
-        <div className="flex items-start space-x-3.5">
+        <div className="flex items-start space-x-3 sm:space-x-3.5">
           <div
-            className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 text-white shadow-md ${
+            className={`w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center flex-shrink-0 text-white shadow-md ${
               isUrgentLeave ? 'bg-gradient-to-br from-amber-500 to-rose-500' : 'bg-teal-600'
             }`}
           >
-            <Car className="w-6 h-6" />
+            <Car className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
 
           <div>
             <div className="flex items-center space-x-2">
               <span
-                className={`text-xs uppercase font-extrabold px-2 py-0.5 rounded-full ${
+                className={`text-[10px] sm:text-xs uppercase font-extrabold px-2 py-0.5 rounded-full ${
                   isUrgentLeave
                     ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 animate-pulse'
                     : 'bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300'
@@ -82,26 +82,26 @@ export default function LeaveNowBanner({
               >
                 {isUrgentLeave ? '⚡ Action Needed: Leave Now' : 'Arrival Planner'}
               </span>
-              <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center space-x-1">
+              <span className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 flex items-center space-x-1">
                 <Clock className="w-3.5 h-3.5" />
-                <span>Turn at: {turnDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                <span>Turn: {turnDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
               </span>
             </div>
 
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white mt-1">
+            <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white mt-1">
               {minutesUntilDeparture <= 0
                 ? 'You should be on your way right now!'
                 : `Depart in approximately ${minutesUntilDeparture} minutes`}
             </h3>
 
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Ideal Departure Time: <strong className="text-slate-800 dark:text-slate-200">{departureDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</strong> (includes {travelTimeMinutes}m drive + {checkInBufferMinutes}m triage buffer)
+            <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Ideal Departure: <strong className="text-slate-800 dark:text-slate-200">{departureDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</strong> ({travelTimeMinutes}m travel + {checkInBufferMinutes}m buffer)
             </p>
           </div>
         </div>
 
         {/* Right: Travel time setting & SMS alert demo */}
-        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-start sm:justify-end pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-800">
           {editingTravel ? (
             <div className="flex items-center space-x-2 bg-slate-50 dark:bg-slate-800 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
               <input

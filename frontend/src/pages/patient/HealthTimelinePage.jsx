@@ -88,7 +88,7 @@ export default function HealthTimelinePage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 dark:text-white">Continuous Health Timeline</h1>
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">Continuous Health Timeline</h1>
           <p className="text-xs text-slate-500 mt-1">
             Chronological longitudinal record of prescriptions, lab diagnostics, vital logs, and voluntary blood donations.
           </p>
@@ -96,7 +96,7 @@ export default function HealthTimelinePage() {
 
         <button
           onClick={() => setShowUploadModal(true)}
-          className="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-md transition flex items-center space-x-1.5"
+          className="w-full sm:w-auto px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-md transition flex items-center justify-center space-x-1.5"
         >
           <Upload className="w-4 h-4" />
           <span>Upload Medical Document</span>
@@ -220,7 +220,7 @@ export default function HealthTimelinePage() {
       {/* Upload Modal */}
       {showUploadModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
               <h3 className="font-bold text-base text-slate-900 dark:text-white">Upload Medical Record</h3>
               <button onClick={() => setShowUploadModal(false)} className="text-slate-400 hover:text-slate-600">

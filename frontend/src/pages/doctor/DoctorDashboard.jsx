@@ -170,22 +170,22 @@ export default function DoctorDashboard() {
         </div>
 
         {/* Live Availability Toggles */}
-        <div className="flex items-center space-x-1.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl text-xs font-semibold">
+        <div className="w-full md:w-auto flex items-center justify-between sm:justify-start space-x-1.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl text-xs font-semibold overflow-x-auto">
           <button
             onClick={() => handleStatusChange('available')}
-            className={`px-3 py-1.5 rounded-xl transition ${queueData?.doctor?.liveStatus === 'available' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300'}`}
+            className={`flex-1 sm:flex-initial text-center px-3 py-1.5 rounded-xl transition ${queueData?.doctor?.liveStatus === 'available' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300'}`}
           >
             🟢 Available
           </button>
           <button
             onClick={() => handleStatusChange('in_consultation')}
-            className={`px-3 py-1.5 rounded-xl transition ${queueData?.doctor?.liveStatus === 'in_consultation' ? 'bg-amber-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300'}`}
+            className={`flex-1 sm:flex-initial text-center px-3 py-1.5 rounded-xl transition ${queueData?.doctor?.liveStatus === 'in_consultation' ? 'bg-amber-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300'}`}
           >
             🟡 Consulting
           </button>
           <button
             onClick={() => handleStatusChange('on_break')}
-            className={`px-3 py-1.5 rounded-xl transition ${queueData?.doctor?.liveStatus === 'on_break' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300'}`}
+            className={`flex-1 sm:flex-initial text-center px-3 py-1.5 rounded-xl transition ${queueData?.doctor?.liveStatus === 'on_break' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300'}`}
           >
             ☕ On Break
           </button>
@@ -208,12 +208,12 @@ export default function DoctorDashboard() {
 
             {currentPatient ? (
               <div className="space-y-4">
-                <div className="flex items-start justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                   <div>
-                    <span className="text-4xl font-black text-slate-900 dark:text-white">
+                    <span className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white">
                       Token #{currentPatient.tokenNumber}
                     </span>
-                    <h3 className="text-lg font-bold text-teal-700 dark:text-teal-300">
+                    <h3 className="text-base sm:text-lg font-bold text-teal-700 dark:text-teal-300">
                       {currentPatient.bookedForFamilyMember || currentPatient.patientId?.name}
                     </h3>
                     <p className="text-xs text-slate-500">Phone: {currentPatient.patientId?.phone || 'Confidential'}</p>
@@ -221,10 +221,10 @@ export default function DoctorDashboard() {
 
                   <button
                     onClick={() => handleViewPatientHistory(currentPatient.patientId?._id, currentPatient.patientId?.name)}
-                    className="px-3 py-1.5 rounded-xl bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 text-xs font-bold border border-teal-200 dark:border-teal-800 hover:bg-teal-100 flex items-center space-x-1"
+                    className="self-start px-3 py-1.5 rounded-xl bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 text-xs font-bold border border-teal-200 dark:border-teal-800 hover:bg-teal-100 flex items-center space-x-1"
                   >
                     <Eye className="w-3.5 h-3.5" />
-                    <span>View Health History (Consent Checked)</span>
+                    <span>View Health History</span>
                   </button>
                 </div>
 
@@ -359,7 +359,7 @@ export default function DoctorDashboard() {
       {/* Patient Health History Modal with Consent Enforcement */}
       {historyPatient && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-7 max-w-2xl w-full shadow-2xl border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95 my-8">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-7 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95 my-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
               <h3 className="font-bold text-base text-slate-900 dark:text-white">
                 Medical Records: {historyPatient}

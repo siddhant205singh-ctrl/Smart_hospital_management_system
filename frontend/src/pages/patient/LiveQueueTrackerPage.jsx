@@ -153,7 +153,7 @@ export default function LiveQueueTrackerPage() {
               const appt = appointments.find(a => a._id === e.target.value);
               setSelectedAppt(appt);
             }}
-            className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200"
+            className="w-full sm:w-auto px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200"
           >
             {appointments.map(a => (
               <option key={a._id} value={a._id}>
@@ -231,7 +231,7 @@ export default function LiveQueueTrackerPage() {
           </div>
 
           {/* Digital QR Token Card */}
-          <div className="bg-gradient-to-br from-teal-700 via-teal-600 to-cyan-700 text-white rounded-3xl p-6 shadow-xl flex items-center justify-between">
+          <div className="bg-gradient-to-br from-teal-700 via-teal-600 to-cyan-700 text-white rounded-3xl p-6 shadow-xl flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
             <div>
               <span className="text-[10px] uppercase font-bold tracking-wider text-teal-200 block">
                 Contactless Triage Check-in
@@ -244,7 +244,7 @@ export default function LiveQueueTrackerPage() {
 
             <div
               onClick={() => setShowQrModal(true)}
-              className="w-20 h-20 bg-white p-1 rounded-2xl shadow-lg cursor-pointer hover:scale-105 transition flex-shrink-0"
+              className="w-20 h-20 bg-white p-1 rounded-2xl shadow-lg cursor-pointer hover:scale-105 transition flex-shrink-0 self-center sm:self-auto"
               title="Click to enlarge"
             >
               <img src={selectedAppt.qrCode} alt="Token QR" className="w-full h-full object-contain" />
@@ -256,7 +256,7 @@ export default function LiveQueueTrackerPage() {
       {/* Enlarged QR Modal */}
       {showQrModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-sm w-full text-center shadow-2xl border border-slate-200 dark:border-slate-800">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-sm w-full max-h-[90vh] overflow-y-auto text-center shadow-2xl border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95">
             <h3 className="font-bold text-base text-slate-900 dark:text-white">Token #{selectedAppt.tokenNumber}</h3>
             <span className="text-xs font-mono font-bold text-teal-600">{selectedAppt.tokenCode}</span>
             <div className="my-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl inline-block border">

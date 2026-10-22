@@ -78,7 +78,7 @@ export default function ConsentManagerPage() {
         <div>
           <div className="flex items-center space-x-2">
             <Lock className="w-5 h-5 text-teal-600" />
-            <h1 className="text-3xl font-black text-slate-900 dark:text-white">Consent & Privacy Governance</h1>
+            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">Consent & Privacy Governance</h1>
           </div>
           <p className="text-xs text-slate-500 mt-1">
             You own your healthcare records. Grant temporary access to consulting specialists or revoke access instantly.
@@ -87,7 +87,7 @@ export default function ConsentManagerPage() {
 
         <button
           onClick={() => setShowGrantModal(true)}
-          className="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-md transition flex items-center space-x-1.5"
+          className="w-full sm:w-auto px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-md transition flex items-center justify-center space-x-1.5"
         >
           <Plus className="w-4 h-4" />
           <span>Grant Specialist Access</span>
@@ -166,8 +166,8 @@ export default function ConsentManagerPage() {
           Every consultation, record view, or consent update is cryptographically timestamped in an append-only audit trail.
         </p>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+        <div className="overflow-x-auto -mx-6 px-6 sm:mx-0 sm:px-0">
+          <table className="w-full text-left text-xs min-w-[550px]">
             <thead>
               <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400">
                 <th className="pb-2">Accessor</th>
@@ -201,7 +201,7 @@ export default function ConsentManagerPage() {
       {/* Grant Modal */}
       {showGrantModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-200 dark:border-slate-800">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95">
             <h3 className="font-bold text-base text-slate-900 dark:text-white">Authorize Specialist Access</h3>
             <p className="text-xs text-slate-500 mt-1">Specify which doctor can view your health timeline.</p>
 

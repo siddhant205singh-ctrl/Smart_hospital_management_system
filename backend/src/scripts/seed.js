@@ -23,10 +23,12 @@ const CommunityCard = require('../models/CommunityCard');
 const DiscountRule = require('../models/DiscountRule');
 const DiscountApplication = require('../models/DiscountApplication');
 
-const seedData = async () => {
+const seedData = async (shouldExit = true) => {
   try {
     console.log('[Seed] Connecting to MongoDB...');
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/smartcare');
+    if (mongoose.connection.readyState === 0) {
+      await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/smartcare');
+    }
     console.log('[Seed] Clearing existing collections...');
 
     await Promise.all([
@@ -559,11 +561,21 @@ const seedData = async () => {
     console.log('5. Blood Bank Officer:   bloodofficer@smartcare.hospital');
     console.log('======================================================\n');
 
-    process.exit(0);
+    if (shouldExit) {
+      process.exit(0);
+    }
+    return { success: true };
   } catch (error) {
     console.error('[Seed Error]:', error);
-    process.exit(1);
+    if (shouldExit) {
+      process.exit(1);
+    }
+    throw error;
   }
 };
 
-seedData();
+module.exports = seedData;
+
+if (require.main === module) {
+  seedData(true);
+}

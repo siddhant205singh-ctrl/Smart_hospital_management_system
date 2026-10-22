@@ -80,6 +80,37 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Secure One-Time Database Seed Endpoint for Cloud Deployments (Render Free Tier)
+// Trigger by visiting: https://your-backend.onrender.com/api/seed?key=smartcare2026
+app.get('/api/seed', async (req, res) => {
+  const secretKey = req.query.key;
+  if (secretKey !== (process.env.SEED_SECRET || 'smartcare2026')) {
+    return res.status(403).json({
+      error: 'Unauthorized seed trigger. Provide the secret query parameter: ?key=smartcare2026'
+    });
+  }
+
+  try {
+    const seedData = require('./scripts/seed');
+    console.log('[Seed Endpoint] Triggering cloud database seed...');
+    await seedData(false);
+    res.json({
+      success: true,
+      message: '✅ SmartCare + LifeShare Cloud Database Seeded Successfully!',
+      demoLogins: [
+        'patient@smartcare.hospital',
+        'doctor1@smartcare.hospital',
+        'admin@smartcare.hospital',
+        'bloodofficer@smartcare.hospital',
+        'reception@smartcare.hospital'
+      ]
+    });
+  } catch (err) {
+    console.error('[Seed Endpoint Error]', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // Centralized error handler
 app.use(errorHandler);
 

@@ -223,7 +223,7 @@ export default function LifeSharePortal() {
       {/* Registration Modal */}
       {showRegisterModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl border border-slate-200 dark:border-slate-800">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-7 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95">
             <h3 className="font-bold text-base text-slate-900 dark:text-white">Voluntary Donor Registration</h3>
             <p className="text-xs text-slate-500 mt-1">SmartCare LifeShare Voluntary Blood Donor Network</p>
 
@@ -322,7 +322,7 @@ export default function LifeSharePortal() {
       {/* Family Link Modal */}
       {showFamilyModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-200 dark:border-slate-800">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95">
             <h3 className="font-bold text-base text-slate-900 dark:text-white">Link Immediate Family Member</h3>
             <p className="text-xs text-slate-500 mt-1">Applies priority blood access and fee waiver for emergencies.</p>
 

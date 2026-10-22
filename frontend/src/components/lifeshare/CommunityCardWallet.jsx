@@ -52,37 +52,37 @@ export default function CommunityCardWallet({ card, donor, userName }) {
   return (
     <div>
       {/* Wallet Pass Style Card */}
-      <div className={`relative overflow-hidden rounded-3xl bg-gradient-to-br ${theme.gradient} p-6 sm:p-7 text-white shadow-2xl border border-white/20 transition-transform duration-300 hover:scale-[1.01]`}>
+      <div className={`relative overflow-hidden rounded-3xl bg-gradient-to-br ${theme.gradient} p-5 sm:p-7 text-white shadow-2xl border border-white/20 transition-transform duration-300 hover:scale-[1.01]`}>
         {/* Ambient background watermark */}
         <div className="absolute -right-8 -bottom-8 opacity-15 pointer-events-none">
           <Shield className="w-56 h-56" />
         </div>
 
         {/* Card Header */}
-        <div className="flex items-start justify-between relative z-10">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 relative z-10">
           <div>
             <div className="flex items-center space-x-2">
-              <span className="text-[10px] uppercase tracking-widest font-extrabold bg-black/25 px-2.5 py-0.5 rounded-full backdrop-blur-sm border border-white/10">
+              <span className="text-[9px] sm:text-[10px] uppercase tracking-widest font-extrabold bg-black/25 px-2 py-0.5 rounded-full backdrop-blur-sm border border-white/10">
                 LifeShare Network
               </span>
-              <span className="text-[10px] uppercase font-bold text-white/80">
-                Non-Monetary Welfare Pass
+              <span className="text-[9px] sm:text-[10px] uppercase font-bold text-white/80">
+                Non-Monetary Pass
               </span>
             </div>
-            <h2 className="text-2xl font-black tracking-tight mt-1">SmartCare Community Card</h2>
+            <h2 className="text-xl sm:text-2xl font-black tracking-tight mt-1">SmartCare Community Card</h2>
           </div>
 
-          <div className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border shadow-sm backdrop-blur-md ${theme.badge} flex items-center space-x-1`}>
+          <div className={`px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-black uppercase tracking-wider border shadow-sm backdrop-blur-md ${theme.badge} flex items-center space-x-1`}>
             <Sparkles className="w-3.5 h-3.5" />
             <span>{card.tier} Tier ({card.discountPercentage}% OFF)</span>
           </div>
         </div>
 
         {/* Card Number & Chip Row */}
-        <div className="my-6 relative z-10 flex items-center justify-between">
+        <div className="my-4 sm:my-6 relative z-10 flex items-center justify-between">
           <div>
-            <span className="text-[10px] uppercase tracking-wider text-white/70 block">Card Number</span>
-            <span className="font-mono text-xl sm:text-2xl font-bold tracking-wider drop-shadow-sm">
+            <span className="text-[9px] sm:text-[10px] uppercase tracking-wider text-white/70 block">Card Number</span>
+            <span className="font-mono text-base sm:text-2xl font-bold tracking-wider drop-shadow-sm">
               {card.cardNumber}
             </span>
           </div>
@@ -90,7 +90,7 @@ export default function CommunityCardWallet({ card, donor, userName }) {
           {/* QR Code Preview */}
           <div
             onClick={() => setShowQrModal(true)}
-            className="w-16 h-16 bg-white p-1 rounded-xl shadow-lg cursor-pointer hover:scale-105 transition"
+            className="w-14 h-14 sm:w-16 sm:h-16 bg-white p-1 rounded-xl shadow-lg cursor-pointer hover:scale-105 transition flex-shrink-0"
             title="Click to expand QR Code"
           >
             <img src={card.qrCodeUrl} alt="Card QR" className="w-full h-full object-contain" />

@@ -58,9 +58,9 @@ export default function WaitingRoomDisplayPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-white p-6 sm:p-10 flex flex-col justify-between">
       {/* Top Header */}
-      <div className="flex items-center justify-between border-b border-slate-800 pb-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-800 pb-6">
         <div className="flex items-center space-x-4">
-          <div className="w-12 h-12 rounded-2xl bg-teal-600 flex items-center justify-center text-white shadow-xl shadow-teal-500/30">
+          <div className="w-12 h-12 rounded-2xl bg-teal-600 flex items-center justify-center text-white shadow-xl shadow-teal-500/30 flex-shrink-0">
             <Activity className="w-7 h-7" />
           </div>
           <div>
@@ -69,8 +69,8 @@ export default function WaitingRoomDisplayPage() {
           </div>
         </div>
 
-        <div className="text-right">
-          <span className="text-3xl sm:text-4xl font-mono font-black tracking-wider text-teal-400">
+        <div className="text-left sm:text-right">
+          <span className="text-2xl sm:text-4xl font-mono font-black tracking-wider text-teal-400">
             {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
           </span>
           <span className="text-xs text-slate-400 block mt-0.5">

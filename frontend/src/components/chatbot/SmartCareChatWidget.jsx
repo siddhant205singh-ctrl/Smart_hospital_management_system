@@ -94,18 +94,18 @@ export default function SmartCareChatWidget() {
   };
 
   return (
-    <div className="fixed bottom-5 right-5 z-50">
+    <div className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-50">
       {/* Floating Trigger Button */}
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="group relative flex items-center space-x-2 px-4 py-3 bg-gradient-to-r from-teal-600 to-cyan-600 text-white rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all duration-200 border-2 border-white/20"
+          className="group relative flex items-center space-x-2 px-3 sm:px-4 py-2.5 sm:py-3 bg-gradient-to-r from-teal-600 to-cyan-600 text-white rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all duration-200 border-2 border-white/20"
         >
           <div className="relative">
-            <Sparkles className="w-5 h-5 text-amber-300 animate-pulse" />
+            <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-amber-300 animate-pulse" />
             <span className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-400 rounded-full"></span>
           </div>
-          <span className="text-xs font-bold tracking-wide">SmartCare AI</span>
+          <span className="text-[11px] sm:text-xs font-bold tracking-wide">SmartCare AI</span>
           <span className="hidden sm:inline text-[11px] text-teal-100 bg-white/20 px-2 py-0.5 rounded-full">
             Clinical Concierge
           </span>
@@ -114,7 +114,7 @@ export default function SmartCareChatWidget() {
 
       {/* Floating Chat Modal */}
       {isOpen && (
-        <div className="w-[360px] sm:w-[410px] h-[550px] bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div className="w-[calc(100vw-32px)] sm:w-[410px] h-[72vh] sm:h-[550px] max-h-[600px] bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
           {/* Header */}
           <div className="px-4 py-3 bg-gradient-to-r from-teal-700 via-teal-600 to-cyan-700 text-white flex items-center justify-between">
             <div className="flex items-center space-x-2.5">
