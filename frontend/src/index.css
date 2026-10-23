@@ -49,3 +49,8 @@ html.large-font {
 .radar-live {
   animation: radar-pulse 2s infinite;
 }
+
+@keyframes toastProgress {
+  0% { width: 100%; }
+  100% { width: 0%; }
+}

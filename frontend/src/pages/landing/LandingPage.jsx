@@ -124,10 +124,6 @@ export default function LandingPage() {
             <div className="pt-4 flex flex-wrap items-center justify-center gap-y-2 gap-x-4 sm:gap-x-6 text-[11px] sm:text-xs text-slate-500">
               <span className="flex items-center space-x-1.5">
                 <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500" />
-                <span>72% Waiting Reduced</span>
-              </span>
-              <span className="flex items-center space-x-1.5">
-                <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500" />
                 <span>Consent Governed</span>
               </span>
               <span className="flex items-center space-x-1.5">

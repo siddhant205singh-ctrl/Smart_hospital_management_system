@@ -233,6 +233,10 @@ export default function DoctorDirectory() {
                     <img
                       src={doc.userId?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(doc.userId?.name || 'Doctor')}&background=0d9488&color=fff`}
                       alt={doc.userId?.name}
+                      onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(doc.userId?.name || 'Doctor')}&background=0d9488&color=fff`;
+                      }}
                       className="w-14 h-14 rounded-2xl object-cover border-2 border-teal-500 shadow-md"
                     />
                     <div>
@@ -284,7 +288,7 @@ export default function DoctorDirectory() {
                   </p>
                   <p className="flex items-center space-x-1.5">
                     <Clock className="w-3.5 h-3.5 text-cyan-600 flex-shrink-0" />
-                    <span>Avg Consult: <strong>{doc.avgConsultationTime} min</strong> (Room: {doc.roomNumber})</span>
+                    <span>Consultation Room: <strong>{doc.roomNumber}</strong></span>
                   </p>
                   {doc.qualifications?.length > 0 && (
                     <p className="text-[11px] text-teal-700 dark:text-teal-300 font-semibold truncate">

@@ -7,6 +7,7 @@ import './i18n/i18n';
 import { AuthProvider } from './contexts/AuthContext';
 import { SocketProvider } from './contexts/SocketContext';
 import { ThemeA11yProvider } from './contexts/ThemeA11yContext';
+import { ToastProvider } from './contexts/ToastContext';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
@@ -14,7 +15,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       <ThemeA11yProvider>
         <AuthProvider>
           <SocketProvider>
-            <App />
+            <ToastProvider>
+              <App />
+            </ToastProvider>
           </SocketProvider>
         </AuthProvider>
       </ThemeA11yProvider>

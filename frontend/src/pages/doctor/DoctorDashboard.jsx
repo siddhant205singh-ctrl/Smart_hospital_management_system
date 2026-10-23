@@ -172,7 +172,7 @@ export default function DoctorDashboard() {
             {queueData?.doctor?.name} ({queueData?.doctor?.specialty})
           </h1>
           <p className="text-xs text-slate-500">
-            Room: <strong>{queueData?.doctor?.roomNumber}</strong> • Dynamic Rolling Average: <strong>{queueData?.doctor?.avgConsultationTime} min/patient</strong>
+            Room: <strong>{queueData?.doctor?.roomNumber}</strong>
           </p>
         </div>
 
