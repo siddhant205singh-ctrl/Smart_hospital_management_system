@@ -47,7 +47,21 @@ export default function BloodBankDashboard() {
         api.get('/blood-alerts/active')
       ]);
       setBloodRequests(reqsRes.data.requests || []);
-      setInventory(invRes.data.inventory || []);
+      
+      let invList = invRes.data.inventory;
+      if (!invList && invRes.data.bloodGroups) {
+        invList = [];
+        Object.entries(invRes.data.bloodGroups).forEach(([bg, info]) => {
+          Object.entries(info.components || {}).forEach(([comp, count]) => {
+            invList.push({
+              bloodGroup: bg,
+              component: comp,
+              unitsAvailable: count
+            });
+          });
+        });
+      }
+      setInventory(invList || []);
       setAlerts(alertsRes.data.alerts || []);
     } catch (err) {
       console.error(err);
@@ -329,7 +343,7 @@ export default function BloodBankDashboard() {
                 className="p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 text-center"
               >
                 <span className="text-lg font-black text-rose-600 dark:text-rose-400 block">{bg}</span>
-                <span className="text-2xl font-black text-slate-900 dark:text-white my-0.5 block">{count || 12}</span>
+                <span className="text-2xl font-black text-slate-900 dark:text-white my-0.5 block">{count}</span>
                 <span className="text-[10px] text-slate-400 uppercase font-semibold">Units Ready</span>
               </div>
             );

@@ -36,7 +36,18 @@ export default function LandingPage() {
       .catch(err => console.log(err));
 
     api.get('/blood-inventory/public')
-      .then(res => setBloodStock(res.data.inventory || []))
+      .then(res => {
+        let inv = res.data.inventory;
+        if (!inv && res.data.bloodGroups) {
+          inv = [];
+          Object.entries(res.data.bloodGroups).forEach(([bg, info]) => {
+            Object.entries(info.components || {}).forEach(([comp, count]) => {
+              inv.push({ bloodGroup: bg, component: comp, unitsAvailable: count });
+            });
+          });
+        }
+        setBloodStock(inv || []);
+      })
       .catch(err => console.log(err));
   }, []);
 

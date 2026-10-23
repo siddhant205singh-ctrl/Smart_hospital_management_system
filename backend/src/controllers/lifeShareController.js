@@ -323,11 +323,24 @@ exports.recordVerifiedDonation = async (req, res, next) => {
 // @route   GET /api/blood-inventory/public
 exports.getPublicBloodAvailability = async (req, res, next) => {
   try {
-    const units = await BloodUnit.find({ status: 'available' })
+    const filter = { status: 'available' };
+    if (req.query.hospitalId) {
+      filter.hospitalId = req.query.hospitalId;
+    }
+
+    const units = await BloodUnit.find(filter)
       .populate('hospitalId', 'name city phone address');
 
+    const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+    const standardComponents = [
+      'Packed Red Blood Cells (PRBC)',
+      'Fresh Frozen Plasma (FFP)',
+      'Platelets',
+      'Whole Blood'
+    ];
+
     const summary = {};
-    ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].forEach(bg => {
+    bloodGroups.forEach(bg => {
       summary[bg] = {
         totalUnits: 0,
         components: {
@@ -339,6 +352,18 @@ exports.getPublicBloodAvailability = async (req, res, next) => {
       };
     });
 
+    const inventoryMap = {};
+    bloodGroups.forEach(bg => {
+      standardComponents.forEach(comp => {
+        inventoryMap[`${bg}__${comp}`] = {
+          bloodGroup: bg,
+          component: comp,
+          unitsAvailable: 0,
+          hospitals: []
+        };
+      });
+    });
+
     units.forEach(u => {
       if (summary[u.bloodGroup]) {
         summary[u.bloodGroup].totalUnits += 1;
@@ -346,11 +371,42 @@ exports.getPublicBloodAvailability = async (req, res, next) => {
           summary[u.bloodGroup].components[u.component] += 1;
         }
       }
+
+      const key = `${u.bloodGroup}__${u.component}`;
+      if (!inventoryMap[key]) {
+        inventoryMap[key] = {
+          bloodGroup: u.bloodGroup,
+          component: u.component,
+          unitsAvailable: 0,
+          hospitals: []
+        };
+      }
+      inventoryMap[key].unitsAvailable += 1;
+
+      if (u.hospitalId) {
+        const hospId = u.hospitalId._id?.toString() || '';
+        const hospName = u.hospitalId.name || 'Network Hospital';
+        const existing = inventoryMap[key].hospitals.find(h => h.hospitalId === hospId);
+        if (existing) {
+          existing.units += 1;
+        } else {
+          inventoryMap[key].hospitals.push({
+            hospitalId: hospId,
+            name: hospName,
+            city: u.hospitalId.city || '',
+            phone: u.hospitalId.phone || '',
+            units: 1
+          });
+        }
+      }
     });
+
+    const inventory = Object.values(inventoryMap);
 
     res.json({
       success: true,
       totalAvailableUnits: units.length,
+      inventory,
       bloodGroups: summary
     });
   } catch (error) {
