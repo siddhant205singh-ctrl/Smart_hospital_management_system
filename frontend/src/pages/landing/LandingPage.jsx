@@ -209,7 +209,7 @@ export default function LandingPage() {
               We honor 100% voluntary, unpaid blood donors with official milestone badges, thank-you certificates, and Donor Family Fast-Track benefits (waived processing fees & expedited paperwork) during clinical emergencies.
             </p>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-4 pt-3 sm:pt-4">
+            {/* <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-4 pt-3 sm:pt-4">
               <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-sm border border-white/10">
                 <span className="text-lg sm:text-xl font-black block">1st Gift</span>
                 <span className="text-[11px] sm:text-xs text-rose-200">First Blood Gift</span>
@@ -226,7 +226,7 @@ export default function LandingPage() {
                 <span className="text-lg sm:text-xl font-black block text-cyan-300">10+ Gifts</span>
                 <span className="text-[11px] sm:text-xs text-cyan-200">Gold Star Honor</span>
               </div>
-            </div>
+            </div> */}
 
             <div className="pt-3 sm:pt-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3">
               <Link
