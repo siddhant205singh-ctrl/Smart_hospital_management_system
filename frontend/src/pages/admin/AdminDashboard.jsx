@@ -10,10 +10,10 @@ import {
   Calendar,
   CheckCircle,
   Plus,
-  QrCode,
-  DollarSign,
+  Zap,
   ShieldCheck,
-  Stethoscope
+  Stethoscope,
+  Heart
 } from 'lucide-react';
 import {
   LineChart,
@@ -40,27 +40,35 @@ export default function AdminDashboard() {
   const [doctors, setDoctors] = useState([]);
   const [walkinSuccess, setWalkinSuccess] = useState(null);
 
-  // Community Card Checkout Scanner state
-  const [scanCardNumber, setScanCardNumber] = useState('SC-GOLD-84920');
-  const [serviceCategory, setServiceCategory] = useState('outpatient_consultation');
-  const [billAmount, setBillAmount] = useState(1500);
-  const [isAdmissionLinked, setIsAdmissionLinked] = useState(false);
-  const [discountResult, setDiscountResult] = useState(null);
-  const [discountError, setDiscountError] = useState('');
+  // Donor Family Fast-Track Policy State
+  const [fastTrackSettings, setFastTrackSettings] = useState({
+    minDonationsForFastTrack: 1,
+    activeDonationMaxMonths: 12,
+    waiveProcessingFee: true,
+    waiveReplacementDonor: true,
+    preVerifyPaperwork: true,
+    annualCapPerFamily: 4
+  });
+  const [fastTrackSavedMsg, setFastTrackSavedMsg] = useState('');
+  const [fastTrackError, setFastTrackError] = useState('');
   const [breakGlassLogs, setBreakGlassLogs] = useState([]);
 
   const fetchData = async () => {
     try {
-      const [overRes, analRes, docsRes, bgRes] = await Promise.all([
+      const [overRes, analRes, docsRes, bgRes, ftRes] = await Promise.all([
         api.get('/admin/overview'),
         api.get('/admin/analytics'),
         api.get('/doctors'),
-        api.get('/emergency-cases/break-glass-logs').catch(() => ({ data: { logs: [] } }))
+        api.get('/emergency-cases/break-glass-logs').catch(() => ({ data: { logs: [] } })),
+        api.get('/fast-track/settings').catch(() => ({ data: { settings: null } }))
       ]);
       setOverview(overRes.data);
       setAnalytics(analRes.data);
       setDoctors(docsRes.data.doctors || []);
       setBreakGlassLogs(bgRes.data.logs || []);
+      if (ftRes.data?.settings) {
+        setFastTrackSettings(ftRes.data.settings);
+      }
       if (docsRes.data.doctors?.length > 0) {
         setWalkinDoctorId(docsRes.data.doctors[0]._id);
       }
@@ -92,20 +100,17 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleApplyCardDiscount = async (e) => {
+  const handleUpdateFastTrack = async (e) => {
     e.preventDefault();
-    setDiscountError('');
-    setDiscountResult(null);
+    setFastTrackSavedMsg('');
+    setFastTrackError('');
     try {
-      const res = await api.post('/discount-applications/apply', {
-        cardNumber: scanCardNumber,
-        serviceCategory,
-        originalBillAmount: Number(billAmount),
-        isAdmissionLinked
-      });
-      setDiscountResult(res.data);
+      const res = await api.put('/fast-track/settings', fastTrackSettings);
+      setFastTrackSettings(res.data.settings);
+      setFastTrackSavedMsg('Donor Family Fast-Track policy successfully updated!');
+      setTimeout(() => setFastTrackSavedMsg(''), 4000);
     } catch (err) {
-      setDiscountError(err.response?.data?.error || 'Failed to apply discount');
+      setFastTrackError(err.response?.data?.error || 'Failed to update Fast-Track policy');
     }
   };
 
@@ -287,7 +292,7 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Operations Row: Receptionist Walk-in Token Creator + Community Card OPD Billing Scanner */}
+      {/* Operations Row: Receptionist Walk-in Token Creator + Donor Family Fast-Track Governance */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Rapid Walk-in Generator */}
         <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
@@ -355,92 +360,118 @@ export default function AdminDashboard() {
           </form>
         </div>
 
-        {/* Community Card OPD Checkout Scanner with Compliance Guard */}
+        {/* Donor Family Fast-Track Policy & Governance Console */}
         <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
           <div>
             <h3 className="font-bold text-base text-slate-900 dark:text-white flex items-center space-x-2">
-              <QrCode className="w-5 h-5 text-amber-500" />
-              <span>Community Card OPD Discount Scanner</span>
+              <Zap className="w-5 h-5 text-amber-500 fill-amber-500" />
+              <span>Donor Family Fast-Track Governance</span>
             </h3>
-            <p className="text-xs text-slate-500">Scan donor's digital card to verify tier and apply outpatient discount.</p>
+            <p className="text-xs text-slate-500">Configure administrative exemptions for verified blood donors & families. Clinical urgency strictly dictates blood units allocation.</p>
           </div>
 
-          {discountError && (
+          {fastTrackError && (
             <div className="p-3 bg-rose-50 dark:bg-rose-950/40 rounded-2xl border border-rose-200 text-rose-800 dark:text-rose-200 text-xs">
               <AlertTriangle className="w-4 h-4 text-rose-600 mb-0.5" />
-              <span>{discountError}</span>
+              <span>{fastTrackError}</span>
             </div>
           )}
 
-          {discountResult && (
-            <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 rounded-2xl border border-emerald-200 text-emerald-800 dark:text-emerald-200 text-xs space-y-1">
-              <strong className="block font-bold">Discount Applied ({discountResult.discountPercentage}% OFF)</strong>
-              <span>Original: ₹{discountResult.originalAmount} → Saved: ₹{discountResult.discountAmount} → <strong>Final: ₹{discountResult.finalPayableAmount}</strong></span>
-              <span className="text-[10px] text-slate-400 block">Txn: {discountResult.transactionId}</span>
+          {fastTrackSavedMsg && (
+            <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 rounded-2xl border border-emerald-200 text-emerald-800 dark:text-emerald-200 text-xs flex items-center space-x-2">
+              <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+              <span>{fastTrackSavedMsg}</span>
             </div>
           )}
 
-          <form onSubmit={handleApplyCardDiscount} className="space-y-3 text-xs">
-            <div>
-              <label className="font-semibold block mb-1">Card Number (from scanned QR)</label>
-              <input
-                type="text"
-                required
-                value={scanCardNumber}
-                onChange={(e) => setScanCardNumber(e.target.value)}
-                placeholder="e.g. SC-GOLD-84920"
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-mono font-bold"
-              />
-            </div>
-
+          <form onSubmit={handleUpdateFastTrack} className="space-y-3 text-xs">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="font-semibold block mb-1">Service Category</label>
-                <select
-                  value={serviceCategory}
-                  onChange={(e) => setServiceCategory(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
-                >
-                  <option value="outpatient_consultation">OPD Consultation</option>
-                  <option value="diagnostics_lab">Diagnostics Lab</option>
-                  <option value="radiology_scans">Radiology Scans</option>
-                  <option value="pharmacy_opd">OPD Pharmacy</option>
-                  <option value="health_checkup_packages">Health Checkup Package</option>
-                  <option value="inpatient_admission">Inpatient Admission (Compliance Test)</option>
-                </select>
+                <label className="font-semibold block mb-1">Min. Verified Donations</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="20"
+                  required
+                  value={fastTrackSettings.minDonationsForFastTrack}
+                  onChange={(e) => setFastTrackSettings({ ...fastTrackSettings, minDonationsForFastTrack: Number(e.target.value) })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-bold"
+                />
               </div>
 
               <div>
-                <label className="font-semibold block mb-1">Bill Amount (₹)</label>
+                <label className="font-semibold block mb-1">Active Window (Months)</label>
                 <input
                   type="number"
-                  min="50"
+                  min="1"
+                  max="48"
                   required
-                  value={billAmount}
-                  onChange={(e) => setBillAmount(Number(e.target.value))}
+                  value={fastTrackSettings.activeDonationMaxMonths}
+                  onChange={(e) => setFastTrackSettings({ ...fastTrackSettings, activeDonationMaxMonths: Number(e.target.value) })}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-bold"
                 />
               </div>
             </div>
 
-            {/* Compliance simulation toggle */}
-            <label className="flex items-center space-x-2 p-2 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 cursor-pointer">
+            <div className="space-y-2 pt-1">
+              <label className="flex items-center space-x-2 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={fastTrackSettings.waiveProcessingFee}
+                  onChange={(e) => setFastTrackSettings({ ...fastTrackSettings, waiveProcessingFee: e.target.checked })}
+                  className="rounded text-teal-600 w-4 h-4"
+                />
+                <div className="text-left">
+                  <span className="font-bold text-slate-800 dark:text-white block">Waive Blood Bank Processing Fee (₹0)</span>
+                  <span className="text-[11px] text-slate-500">Exempt verified donors & verified family from handling charges.</span>
+                </div>
+              </label>
+
+              <label className="flex items-center space-x-2 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={fastTrackSettings.waiveReplacementDonor}
+                  onChange={(e) => setFastTrackSettings({ ...fastTrackSettings, waiveReplacementDonor: e.target.checked })}
+                  className="rounded text-teal-600 w-4 h-4"
+                />
+                <div className="text-left">
+                  <span className="font-bold text-slate-800 dark:text-white block">Waive Replacement Donor Mandate</span>
+                  <span className="text-[11px] text-slate-500">Allow instant unit dispatch without replacement donation requirement.</span>
+                </div>
+              </label>
+
+              <label className="flex items-center space-x-2 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={fastTrackSettings.preVerifyPaperwork}
+                  onChange={(e) => setFastTrackSettings({ ...fastTrackSettings, preVerifyPaperwork: e.target.checked })}
+                  className="rounded text-teal-600 w-4 h-4"
+                />
+                <div className="text-left">
+                  <span className="font-bold text-slate-800 dark:text-white block">Pre-Verified Paperwork Streamlining</span>
+                  <span className="text-[11px] text-slate-500">Display pre-authenticated status to Officer directly in queue.</span>
+                </div>
+              </label>
+            </div>
+
+            <div className="pt-1">
+              <label className="font-semibold block mb-1">Annual Fee-Waived Units Cap per Family</label>
               <input
-                type="checkbox"
-                checked={isAdmissionLinked}
-                onChange={(e) => setIsAdmissionLinked(e.target.checked)}
-                className="rounded text-amber-600"
+                type="number"
+                min="1"
+                max="20"
+                value={fastTrackSettings.annualCapPerFamily}
+                onChange={(e) => setFastTrackSettings({ ...fastTrackSettings, annualCapPerFamily: Number(e.target.value) })}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
               />
-              <span className="text-[11px] text-amber-900 dark:text-amber-200">
-                Simulate: Bill is linked to Inpatient Hospital Admission (Tests Compliance Rejection)
-              </span>
-            </label>
+            </div>
 
             <button
               type="submit"
-              className="w-full py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl shadow-md transition"
+              className="w-full py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl shadow-md transition flex items-center justify-center space-x-1.5"
             >
-              Verify Card & Apply Tier Discount
+              <Zap className="w-4 h-4 fill-white" />
+              <span>Update Fast-Track Policy</span>
             </button>
           </form>
         </div>

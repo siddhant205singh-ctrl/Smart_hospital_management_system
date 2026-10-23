@@ -4,7 +4,7 @@
 
 SmartCare is a production-grade, full-stack hospital management web application engineered to eliminate agonizing patient wait times through predictive consultation analytics, real-time Socket.IO queue streaming, consent-governed longitudinal health records, and an intelligent Gemini AI clinical concierge.
 
-It integrates **LifeShare** – a voluntary, unpaid blood donor program that rewards regular donors with priority family blood access and a digital Community Health Card with outpatient welfare discounts at network hospitals.
+It integrates **LifeShare** – a voluntary, unpaid blood donor program that recognizes altruistic donors with official milestone badges, downloadable thank-you certificates, and Donor Family Fast-Track benefits (waived processing fees and expedited paperwork) during clinical emergencies.
 
 ---
 
@@ -29,9 +29,9 @@ It integrates **LifeShare** – a voluntary, unpaid blood donor program that rew
    - Strictly 100% voluntary and unpaid under National Blood Transfusion Council (NBTC) guidelines.
    - Verified physical donations logged only by Blood Bank Officers.
    - Next eligible donation countdown (enforcing 90-day gap for men and 120-day gap for women).
-   - Priority blood access for donor and verified immediate family members (processing fee waived, replacement donor pressure eliminated, prioritized by clinical urgency).
-   - **Community Health Card**: Apple/Google Wallet digital pass with Bronze (10%), Silver (20%), Gold (30%), and Platinum (50%) welfare discounts on outpatient diagnostics and pharmacy.
-   - **Strict Compliance Safeguard**: Discount engine cryptographically rejects any application to inpatient admissions, surgeries, or blood fees.
+   - **Milestone Recognition (Non-Monetary)**: Badges (First Blood Gift, Dedicated Saver, Bronze Shield, Silver Pillar, Gold Star), lives-saved counter, and downloadable official printable thank-you certificate. All recognition carries zero monetary value.
+   - **Donor Family Fast-Track**: Verified donors and their linked family members receive blood bank processing fee waiver (₹0), exemption from replacement donor requirements, and pre-verified paperwork status.
+   - **Strict Urgency Rule**: Blood allocation is governed strictly by clinical emergency triage first; Fast-Track never bypasses a critically ill patient.
 
 6. **SmartCare AI Concierge**:
    - Google Gemini proxy with safety triggers: immediately recognizes emergency symptoms (chest pain, stroke, severe bleeding) and renders red emergency alerts with a 108 direct call button.
@@ -111,7 +111,7 @@ cd backend
 npm install
 cp .env.example .env
 # Edit .env if using remote MongoDB or Gemini API Key (optional)
-npm run seed     # Seeds 3 hospitals, 16 doctors, queue, donors, and Gold Card
+npm run seed     # Seeds 3 hospitals, 16 doctors, queue, donors, and Fast-Track scenario
 npm run dev      # Runs backend API & Socket.IO on http://localhost:5000
 ```
 
@@ -130,11 +130,11 @@ For quick testing during judge evaluations, click the **Quick Demo Role** button
 
 | Role | Demo Email | Key Capabilities |
 | :--- | :--- | :--- |
-| **Patient (Gold Donor)** | `patient@smartcare.hospital` | Token #03 in live queue, Gold Community Card (30% off), Health Timeline, Consent Manager |
+| **Patient (Verified Donor)** | `patient@smartcare.hospital` | Token #03 in live queue, 11 donations, Milestone Badges, Fast-Track active, Health Timeline |
 | **Doctor (Cardiology)** | `doctor1@smartcare.hospital` | Live OPD-101 desk, Call Next, Start/End consultation (recalculates wait times), Patient history |
-| **Hospital Admin** | `admin@smartcare.hospital` | Flow analytics, overcrowding indices, receptionist walk-in token creator, OPD discount scanner |
-| **Blood Bank Officer** | `bloodofficer@smartcare.hospital` | Verified donation logger, blood inventory, priority allocation queue |
-| **Receptionist** | `reception@smartcare.hospital` | Triage check-in, walk-in token printer, OPD checkout discount scanner |
+| **Hospital Admin** | `admin@smartcare.hospital` | Flow analytics, overcrowding indices, receptionist walk-in token creator, Fast-Track governance |
+| **Blood Bank Officer** | `bloodofficer@smartcare.hospital` | Verified donation logger, blood inventory, Fast-Track priority allocation queue |
+| **Receptionist** | `reception@smartcare.hospital` | Triage check-in, walk-in token printer, patient check-in |
 
 ---
 
@@ -169,25 +169,25 @@ Follow this script to demonstrate the complete dynamic feedback loop:
    - Observe the unified chronological stream of prescriptions, cholesterol lab reports with AI-generated plain-language summaries, and verified blood donations.
    - Go to **Consent Manager** (`/consent`): Demonstrate granting and revoking doctor access; review the immutable cryptographic audit log.
 
-6. **LifeShare Blood Donor Program & Community Card**:
+6. **LifeShare Blood Donor Program & Donor Family Fast-Track**:
    - Go to **LifeShare** (`/lifeshare`).
-   - View Rahul Sharma’s profile: **11 verified donations**, **33 lives impacted**, and the **Countdown Widget** confirming he is eligible to donate today.
-   - Inspect the **Digital Community Health Card** (Gold Tier, 30% welfare discount) with rotating QR token and PDF export.
+   - View Rahul Sharma’s profile: **11 verified donations**, **33 lives impacted**, milestone badges, and the **Countdown Widget** confirming he is eligible to donate today.
+   - Click **Download Official Certificate** to preview and download Rahul's official voluntary blood donation certificate.
    - Switch to **Blood Bank Officer** (`bloodofficer@smartcare.hospital`):
-     - View the **Blood Allocation Queue**: Notice Request `REQ-BLD-0104` for Priya Sharma (Rahul's verified spouse) flagged with **Priority Donor-Family Access Applied** and **Processing Fee: ₹0 (Waived)**!
+     - View the **Blood Allocation Queue**: Notice Request `REQ-BLD-0104` for Priya Sharma (Rahul's verified spouse) flagged with **⚡ Fast-Track (Pre-Verified)** and **Processing Fee: ₹0 (Fast-Track Waived)**!
      - Click **Allocate Blood** to assign inventory units.
    - Switch to **Admin** (`admin@smartcare.hospital`):
-     - Scroll to **Community Card OPD Discount Scanner**.
-     - Enter card number `SC-GOLD-84920` with bill ₹1500: Applies 30% discount automatically (saving ₹450).
-     - Check the simulation checkbox: *"Bill is linked to Inpatient Hospital Admission"* $\to$ The compliance engine immediately **rejects** the discount with a legal violation alert!
+     - Scroll to **Donor Family Fast-Track Governance**.
+     - View and configure Fast-Track policies: fee waiver toggle, replacement donor waiver, pre-verified paperwork toggle, and minimum donations threshold.
+     - Note the compliance rule: Clinical urgency strictly dictates blood units allocation. Fast-Track provides administrative streamlining.
 
 7. **SmartCare Gemini Clinical AI Concierge**:
    - Click the floating **SmartCare AI** widget at the bottom right.
    - Type *"I have severe chest pain and breathlessness"* $\to$ Immediate **Emergency Alert** with direct 108 ambulance hotline.
-   - Type *"Am I eligible to donate blood?"* $\to$ Concierge evaluates gender-specific gap (90/120 days) and Community Card perks.
+   - Type *"Am I eligible to donate blood?"* $\to$ Concierge evaluates gender-specific gap (90/120 days) and explains non-monetary recognition badges.
 
 ---
 
 ## 📜 Legal & Compliance Disclaimer
 
-> **TODO / Regulatory Notice**: SmartCare LifeShare policy has been engineered to strictly comply with the **National Blood Transfusion Council (NBTC)** ethical guidelines and the **Drugs & Cosmetics Act** prohibiting the commercial sale of human blood. Welfare discounts are strictly confined to outpatient healthcare and are never negotiable against hospital admission or emergency blood processing. Hospital administrators must review local state transfusion council statutes before clinical deployment.
+> **TODO / Regulatory Notice**: SmartCare LifeShare policy has been engineered to strictly comply with the **National Blood Transfusion Council (NBTC)** ethical guidelines and the **Drugs & Cosmetics Act** prohibiting the commercial sale of human blood. Donations are 100% voluntary and unpaid. Milestone badges and certificates carry zero monetary value, and blood unit allocation is strictly determined by clinical triage. Hospital administrators must review local state transfusion council statutes before clinical deployment.

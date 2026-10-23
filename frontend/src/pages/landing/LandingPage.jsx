@@ -202,29 +202,29 @@ export default function LandingPage() {
             </div>
 
             <h2 className="text-2xl sm:text-4xl font-black tracking-tight leading-tight">
-              Donate Blood. Protect Your Family. Unlock Community Health Card.
+              Donate Blood. Save Lives. Protect Your Family.
             </h2>
 
             <p className="text-xs sm:text-base text-rose-100 leading-relaxed">
-              We reward 100% voluntary, unpaid blood donors with priority blood access for their loved ones and up to 50% welfare discounts on outpatient diagnostics and pharmacy at network hospitals.
+              We honor 100% voluntary, unpaid blood donors with official milestone badges, thank-you certificates, and Donor Family Fast-Track benefits (waived processing fees & expedited paperwork) during clinical emergencies.
             </p>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-4 pt-3 sm:pt-4">
               <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-sm border border-white/10">
-                <span className="text-lg sm:text-xl font-black block">Bronze (3+)</span>
-                <span className="text-[11px] sm:text-xs text-rose-200">10% Welfare Off</span>
+                <span className="text-lg sm:text-xl font-black block">1st Gift</span>
+                <span className="text-[11px] sm:text-xs text-rose-200">First Blood Gift</span>
               </div>
               <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-sm border border-white/10">
-                <span className="text-lg sm:text-xl font-black block">Silver (6+)</span>
-                <span className="text-[11px] sm:text-xs text-rose-200">20% Welfare Off</span>
+                <span className="text-lg sm:text-xl font-black block">3+ Gifts</span>
+                <span className="text-[11px] sm:text-xs text-rose-200">Dedicated Life Saver</span>
               </div>
               <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-sm border border-white/10">
-                <span className="text-lg sm:text-xl font-black block text-amber-300">Gold (10+)</span>
-                <span className="text-[11px] sm:text-xs text-amber-200">30% Welfare Off</span>
+                <span className="text-lg sm:text-xl font-black block text-amber-300">5+ Gifts</span>
+                <span className="text-[11px] sm:text-xs text-amber-200">Bronze Shield</span>
               </div>
               <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-sm border border-white/10">
-                <span className="text-lg sm:text-xl font-black block text-cyan-300">Platinum (15+)</span>
-                <span className="text-[11px] sm:text-xs text-cyan-200">50% Welfare Off</span>
+                <span className="text-lg sm:text-xl font-black block text-cyan-300">10+ Gifts</span>
+                <span className="text-[11px] sm:text-xs text-cyan-200">Gold Star Honor</span>
               </div>
             </div>
 

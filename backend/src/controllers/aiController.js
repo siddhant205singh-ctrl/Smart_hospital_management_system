@@ -97,10 +97,10 @@ exports.chatWithAssistant = async (req, res, next) => {
       reply = `Here is the current live blood availability across SmartCare Network Blood Banks:\n\n${summaryList || 'Units are being updated.'}\n\nAll units are voluntary, unpaid donations screened under NBTC guidelines.`;
       toolResult = { type: 'blood_stock', data: available };
     } else if (lower.includes('eligible') && lower.includes('donate')) {
-      reply = "To donate voluntary blood: You must be 18–65 years old, weigh at least 45 kg, and maintain a gap of **90 days for men** or **120 days for women** since your last donation. Plus, 3+ donations earn a Community Health Card!";
+      reply = "To donate voluntary blood: You must be 18–65 years old, weigh at least 45 kg, and maintain a gap of **90 days for men** or **120 days for women** since your last donation. Voluntary donors earn milestone recognition badges, downloadable certificates, and qualify their families for Donor Family Fast-Track blood access!";
       toolResult = { type: 'donor_eligibility' };
-    } else if (lower.includes('community card') || lower.includes('discount')) {
-      reply = "The **SmartCare Community Health Card** rewards voluntary blood donors with welfare discounts:\n- **Bronze (3+ donations)**: 10% off OPD, diagnostics & pharmacy\n- **Silver (6+)**: 20% off\n- **Gold (10+)**: 30% off\n- **Platinum (15+)**: 50% off\n\n*Note: In accordance with healthcare regulations, discounts are strictly for outpatient welfare and never apply to inpatient admissions, surgeries, or blood units.*";
+    } else if (lower.includes('fast-track') || lower.includes('fast track') || lower.includes('recognition') || lower.includes('badge')) {
+      reply = "Under **SmartCare LifeShare Donor Family Fast-Track**, active voluntary donors and their verified linked family members receive waived blood bank processing fees (₹0), exemption from replacement-donor requirements, and pre-verified paperwork during crisis. All blood allocation strictly follows clinical urgency.";
     } else if (lower.includes('symptom') || lower.includes('pain') || lower.includes('doctor for') || lower.includes('specialist')) {
       const rec = recommendSpecialist(message);
       const doctors = await Doctor.find({ specialty: rec.specialty }).populate('userId', 'name').limit(2);

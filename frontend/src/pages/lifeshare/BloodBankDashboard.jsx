@@ -15,7 +15,8 @@ import {
   Search,
   PackageCheck,
   Radio,
-  CheckCircle2
+  CheckCircle2,
+  Zap
 } from 'lucide-react';
 
 export default function BloodBankDashboard() {
@@ -70,7 +71,7 @@ export default function BloodBankDashboard() {
         ...donationForm,
         donorId
       });
-      alert('Verified donation recorded successfully! Donor timeline & Community Card tier updated.');
+      alert('Verified donation recorded successfully! Donor timeline, badge milestones & Fast-Track eligibility updated.');
       setShowDonationModal(false);
       fetchData();
     } catch (err) {
@@ -215,7 +216,7 @@ export default function BloodBankDashboard() {
               <span>Blood Allocation Queue ({bloodRequests.length})</span>
             </h2>
             <p className="text-xs text-slate-500">
-              Sorting: 1st Clinical Urgency → 2nd Priority Donor-Family Access tiebreaker → 3rd FIFO
+              Sorting: 1st Clinical Urgency → 2nd Fast-Track Administrative Processing → 3rd FIFO
             </p>
           </div>
         </div>
@@ -228,7 +229,7 @@ export default function BloodBankDashboard() {
                 <th className="pb-3">Patient</th>
                 <th className="pb-3">Blood & Component</th>
                 <th className="pb-3">Clinical Urgency</th>
-                <th className="pb-3">Donor-Family Priority</th>
+                <th className="pb-3">Donor Family Fast-Track</th>
                 <th className="pb-3">Processing Fee</th>
                 <th className="pb-3">Status</th>
                 <th className="pb-3 text-right">Action</th>
@@ -262,20 +263,20 @@ export default function BloodBankDashboard() {
                     </span>
                   </td>
                   <td className="py-3">
-                    {req.isPriorityDonorFamily ? (
-                      <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 text-[10px] font-bold">
-                        <Sparkles className="w-3 h-3 text-amber-500" />
-                        <span>Priority Access Applied</span>
+                    {req.fastTrackApplied || req.isPriorityDonorFamily ? (
+                      <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 text-[10px] font-bold border border-amber-300 dark:border-amber-700">
+                        <Zap className="w-3 h-3 text-amber-500 fill-amber-500" />
+                        <span>⚡ Fast-Track (Pre-Verified)</span>
                       </span>
                     ) : (
                       <span className="text-slate-400 text-[11px]">Standard Queue</span>
                     )}
                   </td>
                   <td className="py-3 font-bold">
-                    {req.processingFeeWaived ? (
-                      <span className="text-emerald-600">₹0 (Waived)</span>
+                    {req.fastTrackBenefits?.feeWaived || req.processingFeeWaived ? (
+                      <span className="text-emerald-600 font-bold">₹0 (Fast-Track Waived)</span>
                     ) : (
-                      <span>₹{req.processingFeeAmount}</span>
+                      <span>₹{req.processingFeeAmount || 1200}</span>
                     )}
                   </td>
                   <td className="py-3">

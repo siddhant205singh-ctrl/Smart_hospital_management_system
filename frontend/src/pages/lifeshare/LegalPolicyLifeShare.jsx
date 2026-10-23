@@ -34,10 +34,10 @@ export default function LegalPolicyLifeShare() {
         <div className="space-y-2">
           <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center space-x-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-            <span>2. Strict Isolation of Welfare Discounts from Inpatient Care</span>
+            <span>2. Non-Monetary Milestone Recognition & Official Certificates</span>
           </h2>
           <p>
-            Community Health Card discounts are strictly restricted to outpatient welfare (routine doctor OPD visits, preventive health checkups, and outpatient pharmacy). <strong>The discount engine cryptographically rejects any application to inpatient hospital admissions, ICU charges, surgical bills, or blood processing charges.</strong>
+            SmartCare recognizes donors solely through milestone badges, thank-you certificates, and Health Timeline records. These honors carry <strong>strictly zero monetary value, financial credit, or outpatient discounts</strong>. Donations are 100% altruistic, voluntary, and unpaid in compliance with National Blood Transfusion Council (NBTC) guidelines.
           </p>
         </div>
 
@@ -45,10 +45,10 @@ export default function LegalPolicyLifeShare() {
         <div className="space-y-2">
           <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center space-x-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-            <span>3. Clinical Urgency Always Takes Precedence</span>
+            <span>3. Clinical Urgency Governs Blood Allocation First</span>
           </h2>
           <p>
-            In the event of blood allocation, triage is dictated strictly by clinical need. Emergency trauma, surgical hemorrhage, and critical patients are allocated available blood immediately, irrespective of donor status. Priority donor-family access functions solely as a queue tiebreaker among equal clinical priorities, waives processing fees, and removes replacement donor pressure.
+            In blood allocation, triage is dictated strictly by clinical need and patient urgency. Emergency trauma, surgical hemorrhage, and critical cases receive available blood first, irrespective of donor status. <strong>Donor Family Fast-Track status never bumps a less urgent patient ahead of a more critical one</strong>. Fast-Track provides administrative friction removal: blood bank processing fee waived to ₹0, exemption from replacement donor mandates, and pre-verified paperwork status.
           </p>
         </div>
 

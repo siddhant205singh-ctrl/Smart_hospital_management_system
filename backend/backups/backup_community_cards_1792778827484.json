@@ -1,0 +1,105 @@
+{
+  "communitycards": [
+    {
+      "_id": "6adb89617caa0d585c8e69d2",
+      "cardNumber": "SC-GOLD-84920",
+      "donorId": "6adb89617caa0d585c8e69c7",
+      "userId": "6adb895c7caa0d585c8e68a0",
+      "tier": "Gold",
+      "discountPercentage": 30,
+      "totalLifetimeDonationsAtIssue": 11,
+      "validUntil": "2028-10-22T16:20:49.796Z",
+      "status": "active",
+      "rotatingQrSecret": "16d05cc8a04278f9d97cb9546ac4241d",
+      "qrCodeUrl": "data:image/png;base64,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",
+      "suspensionReason": "",
+      "issuedDate": "2026-10-23T16:20:49.796Z",
+      "createdAt": "2026-10-23T16:20:49.797Z",
+      "updatedAt": "2026-10-23T16:20:49.797Z",
+      "__v": 0
+    }
+  ],
+  "discountrules": [
+    {
+      "_id": "6adb89657caa0d585c8e6bf4",
+      "hospitalId": "6adb895b7caa0d585c8e686d",
+      "category": "outpatient_consultation",
+      "tierDiscounts": {
+        "Bronze": 10,
+        "Silver": 20,
+        "Gold": 30,
+        "Platinum": 50
+      },
+      "maxDiscountCapRupees": 5000,
+      "isActive": true,
+      "createdAt": "2026-10-23T16:20:53.517Z",
+      "updatedAt": "2026-10-23T16:20:53.517Z",
+      "__v": 0
+    },
+    {
+      "_id": "6adb89657caa0d585c8e6bf6",
+      "hospitalId": "6adb895b7caa0d585c8e686d",
+      "category": "diagnostics_lab",
+      "tierDiscounts": {
+        "Bronze": 10,
+        "Silver": 20,
+        "Gold": 30,
+        "Platinum": 50
+      },
+      "maxDiscountCapRupees": 5000,
+      "isActive": true,
+      "createdAt": "2026-10-23T16:20:53.533Z",
+      "updatedAt": "2026-10-23T16:20:53.533Z",
+      "__v": 0
+    },
+    {
+      "_id": "6adb89657caa0d585c8e6bf8",
+      "hospitalId": "6adb895b7caa0d585c8e686d",
+      "category": "radiology_scans",
+      "tierDiscounts": {
+        "Bronze": 10,
+        "Silver": 20,
+        "Gold": 30,
+        "Platinum": 50
+      },
+      "maxDiscountCapRupees": 5000,
+      "isActive": true,
+      "createdAt": "2026-10-23T16:20:53.550Z",
+      "updatedAt": "2026-10-23T16:20:53.550Z",
+      "__v": 0
+    },
+    {
+      "_id": "6adb89657caa0d585c8e6bfa",
+      "hospitalId": "6adb895b7caa0d585c8e686d",
+      "category": "pharmacy_opd",
+      "tierDiscounts": {
+        "Bronze": 10,
+        "Silver": 20,
+        "Gold": 30,
+        "Platinum": 50
+      },
+      "maxDiscountCapRupees": 5000,
+      "isActive": true,
+      "createdAt": "2026-10-23T16:20:53.565Z",
+      "updatedAt": "2026-10-23T16:20:53.565Z",
+      "__v": 0
+    },
+    {
+      "_id": "6adb89657caa0d585c8e6bfc",
+      "hospitalId": "6adb895b7caa0d585c8e686d",
+      "category": "health_checkup_packages",
+      "tierDiscounts": {
+        "Bronze": 10,
+        "Silver": 20,
+        "Gold": 30,
+        "Platinum": 50
+      },
+      "maxDiscountCapRupees": 5000,
+      "isActive": true,
+      "createdAt": "2026-10-23T16:20:53.580Z",
+      "updatedAt": "2026-10-23T16:20:53.580Z",
+      "__v": 0
+    }
+  ],
+  "discountapplications": []
+}

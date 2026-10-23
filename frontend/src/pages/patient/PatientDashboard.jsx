@@ -130,9 +130,14 @@ export default function PatientDashboard() {
 
           {donorData?.donor ? (
             <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-sm border border-white/20 text-center">
-              <span className="text-[10px] uppercase font-bold text-amber-300 block">LifeShare Donor Tier</span>
-              <span className="text-xl font-black text-white">{donorData.card?.tier || 'Gold'} Tier</span>
-              <span className="text-[10px] text-teal-100 block">{donorData.card?.discountPercentage || 30}% Outpatient Welfare Off</span>
+              <span className="text-[10px] uppercase font-bold text-amber-300 block">LifeShare Verified Donor</span>
+              <span className="text-sm font-black text-white flex items-center justify-center gap-1">
+                <Heart className="w-3.5 h-3.5 fill-rose-400 text-rose-400 inline" />
+                {donorData.donor.totalDonations || 0} Donations ({donorData.donor.totalDonations * 3} Lives)
+              </span>
+              <span className="text-[10px] text-emerald-200 block font-semibold mt-0.5">
+                ⚡ Donor Family Fast-Track Active
+              </span>
             </div>
           ) : (
             <Link

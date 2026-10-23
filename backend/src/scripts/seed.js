@@ -19,9 +19,6 @@ const Donation = require('../models/Donation');
 const BloodUnit = require('../models/BloodUnit');
 const BloodRequest = require('../models/BloodRequest');
 const FamilyLink = require('../models/FamilyLink');
-const CommunityCard = require('../models/CommunityCard');
-const DiscountRule = require('../models/DiscountRule');
-const DiscountApplication = require('../models/DiscountApplication');
 const BloodAlert = require('../models/BloodAlert');
 const BloodAlertResponse = require('../models/BloodAlertResponse');
 const EmergencyCase = require('../models/EmergencyCase');
@@ -51,9 +48,6 @@ const seedData = async (shouldExit = true) => {
       BloodUnit.deleteMany({}),
       BloodRequest.deleteMany({}),
       FamilyLink.deleteMany({}),
-      CommunityCard.deleteMany({}),
-      DiscountRule.deleteMany({}),
-      DiscountApplication.deleteMany({}),
       BloodAlert.deleteMany({}),
       BloodAlertResponse.deleteMany({}),
       EmergencyCase.deleteMany({}),
@@ -582,28 +576,16 @@ const seedData = async (shouldExit = true) => {
       healthRecordId: donationTimeline._id
     });
 
-    // Seed Community Health Card (Gold Tier: 30% discount on OPD, diagnostics, pharmacy)
-    const cardSecret = crypto.randomBytes(16).toString('hex');
-    const qrCard = await QRCode.toDataURL(JSON.stringify({
-      cardNumber: 'SC-GOLD-84920',
-      donorName: 'Rahul Sharma',
-      tier: 'Gold',
-      discount: 30,
-      validUntil: '2028-10-21'
-    }));
-
-    await CommunityCard.create({
-      cardNumber: 'SC-GOLD-84920',
-      donorId: rahulDonor._id,
-      userId: patientUser._id,
-      tier: 'Gold',
-      discountPercentage: 30,
-      totalLifetimeDonationsAtIssue: 11,
-      validUntil: new Date(Date.now() + 2 * 365 * 86400000),
-      rotatingQrSecret: cardSecret,
-      qrCodeUrl: qrCard,
-      status: 'active'
-    });
+    // Award comprehensive non-monetary recognition badges to Rahul Sharma
+    rahulDonor.badges = [
+      { name: 'First Blood Gift', icon: 'Award', awardedAt: new Date(Date.now() - 400 * 86400000), description: 'Awarded for your 1st verified voluntary blood donation.' },
+      { name: 'Dedicated Life Saver', icon: 'Heart', awardedAt: new Date(Date.now() - 280 * 86400000), description: 'Awarded for 3 verified voluntary donations saving up to 9 lives.' },
+      { name: 'Bronze Shield Donor', icon: 'Shield', awardedAt: new Date(Date.now() - 200 * 86400000), description: 'Awarded for 5 verified voluntary donations.' },
+      { name: 'Silver Pillar Donor', icon: 'Medal', awardedAt: new Date(Date.now() - 150 * 86400000), description: 'Awarded for 7 verified voluntary donations.' },
+      { name: 'Gold Star Donor', icon: 'Star', awardedAt: new Date(Date.now() - 105 * 86400000), description: 'Awarded for 10 verified voluntary donations.' },
+      { name: 'Champion of Humanity', icon: 'Crown', awardedAt: new Date(Date.now() - 30 * 86400000), description: 'Awarded for 15+ verified voluntary donations.' }
+    ];
+    await rahulDonor.save();
 
     // Seed Verified Family Link for spouse (Priya Sharma)
     await FamilyLink.create({
@@ -643,7 +625,7 @@ const seedData = async (shouldExit = true) => {
       }
     }
 
-    // Seed a Priority Blood Request for Priya Sharma (Linked Verified Family Member) for Judges Walkthrough!
+    // Seed a Donor Family Fast-Track Blood Request for Priya Sharma (Linked Verified Family Member)
     await BloodRequest.create({
       requestId: 'REQ-BLD-0104',
       hospitalId: hospitals[0]._id,
@@ -654,10 +636,20 @@ const seedData = async (shouldExit = true) => {
       unitsRequested: 2,
       unitsAllocated: 0,
       clinicalUrgency: 'urgent_surgery',
-      isPriorityDonorFamily: true,
-      priorityJustification: {
-        matchedDonorId: rahulDonor._id,
-        donorTier: 'Gold'
+      fastTrackApplied: true,
+      fastTrackDetails: {
+        donorId: rahulDonor._id,
+        donorName: 'Rahul Sharma',
+        totalDonations: 11,
+        lastDonationDate: rahulDonor.lastDonationDate,
+        relationship: 'spouse'
+      },
+      fastTrackBenefits: {
+        feeWaived: true,
+        originalProcessingFeeRupees: 2400,
+        finalProcessingFeeRupees: 0,
+        replacementDonorWaived: true,
+        paperworkPreVerified: true
       },
       processingFeeWaived: true,
       processingFeeAmount: 0,
@@ -665,18 +657,6 @@ const seedData = async (shouldExit = true) => {
       status: 'pending',
       clinicalDiagnosis: 'Elective laparoscopic cholecystectomy - pre-op cross match'
     });
-
-    // Seed Discount Rules for Hospital
-    const categories = ['outpatient_consultation', 'diagnostics_lab', 'radiology_scans', 'pharmacy_opd', 'health_checkup_packages'];
-    for (const cat of categories) {
-      await DiscountRule.create({
-        hospitalId: hospitals[0]._id,
-        category: cat,
-        tierDiscounts: { Bronze: 10, Silver: 20, Gold: 30, Platinum: 50 },
-        maxDiscountCapRupees: 5000,
-        isActive: true
-      });
-    }
 
     // Seed Active Blood Shortage Alert (B+ Packed Red Blood Cells at Apollo)
     console.log('[Seed] Seeding Active Blood Shortage Alert...');

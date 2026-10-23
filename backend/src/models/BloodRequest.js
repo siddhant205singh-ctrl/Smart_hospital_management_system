@@ -20,11 +20,21 @@ const bloodRequestSchema = new mongoose.Schema({
     required: true,
     index: true 
   },
-  isPriorityDonorFamily: { type: Boolean, default: false, index: true },
-  priorityJustification: {
-    matchedDonorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Donor' },
-    familyLinkId: { type: mongoose.Schema.Types.ObjectId, ref: 'FamilyLink' },
-    donorTier: { type: String }
+  fastTrackApplied: { type: Boolean, default: false, index: true },
+  fastTrackDetails: {
+    donorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Donor' },
+    donorName: String,
+    totalDonations: Number,
+    lastDonationDate: Date,
+    relationship: String,
+    familyLinkId: { type: mongoose.Schema.Types.ObjectId, ref: 'FamilyLink' }
+  },
+  fastTrackBenefits: {
+    feeWaived: { type: Boolean, default: false },
+    originalProcessingFeeRupees: { type: Number, default: 1200 },
+    finalProcessingFeeRupees: { type: Number, default: 0 },
+    replacementDonorWaived: { type: Boolean, default: true },
+    paperworkPreVerified: { type: Boolean, default: true }
   },
   processingFeeWaived: { type: Boolean, default: false },
   processingFeeAmount: { type: Number, default: 0 },

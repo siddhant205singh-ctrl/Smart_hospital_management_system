@@ -53,7 +53,7 @@ export default function Footer() {
           <div>
             <h4 className="font-semibold text-slate-900 dark:text-white mb-3 text-sm">Ethics & Compliance</h4>
             <p className="text-slate-500 leading-relaxed text-[11px]">
-              LifeShare blood donation is strictly voluntary and unpaid under the National Blood Transfusion Council (NBTC) guidelines. Community Health Card discounts are restricted solely to outpatient welfare and never apply to inpatient admissions, surgeries, or blood units.
+              LifeShare blood donation is strictly 100% voluntary and unpaid under National Blood Transfusion Council (NBTC) guidelines. Recognition badges and thank-you certificates carry zero monetary value. Donor Family Fast-Track waives administrative handling fees without ever overriding clinical urgency.
             </p>
             <Link to="/legal-policy" className="mt-2 inline-block text-teal-600 hover:underline font-medium">
               Read LifeShare Legal & Policy Charter →

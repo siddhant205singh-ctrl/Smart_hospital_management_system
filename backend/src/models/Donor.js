@@ -20,7 +20,8 @@ const donorSchema = new mongoose.Schema({
   badges: [{
     name: { type: String },
     awardedAt: { type: Date, default: Date.now },
-    icon: { type: String }
+    icon: { type: String },
+    description: { type: String, default: '' }
   }],
   status: { type: String, enum: ['active', 'deferred', 'ineligible'], default: 'active' },
   deferralReason: { type: String, default: '' },
