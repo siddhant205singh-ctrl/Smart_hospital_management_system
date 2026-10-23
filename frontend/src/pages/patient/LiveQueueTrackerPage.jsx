@@ -14,7 +14,8 @@ import {
   AlertCircle,
   Volume2,
   Calendar,
-  Sparkles
+  Sparkles,
+  XCircle
 } from 'lucide-react';
 
 export default function LiveQueueTrackerPage() {
@@ -27,20 +28,51 @@ export default function LiveQueueTrackerPage() {
   const [loading, setLoading] = useState(true);
   const [showQrModal, setShowQrModal] = useState(false);
   const [audioAlert, setAudioAlert] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+
+  const fetchAppointments = async () => {
+    try {
+      const res = await api.get('/appointments/my');
+      const appts = res.data.appointments || [];
+      setAppointments(appts);
+      return appts;
+    } catch (err) {
+      console.error(err);
+      return [];
+    }
+  };
 
   // Fetch patient's upcoming appointments
   useEffect(() => {
-    api.get('/appointments/my')
-      .then(res => {
-        const appts = res.data.appointments || [];
-        setAppointments(appts);
+    fetchAppointments()
+      .then(appts => {
         // Default to first active appointment
         const active = appts.find(a => ['scheduled', 'checked_in', 'called', 'in_consultation'].includes(a.status)) || appts[0];
         if (active) setSelectedAppt(active);
       })
-      .catch(err => console.error(err))
       .finally(() => setLoading(false));
   }, []);
+
+  const handleCancelAppointment = async () => {
+    if (!selectedAppt) return;
+    const confirmed = window.confirm(
+      `Cancel your appointment (Token #${selectedAppt.tokenNumber}) with Dr. ${selectedAppt.doctorId?.userId?.name || 'Doctor'}? This will release your spot in the waiting queue.`
+    );
+    if (!confirmed) return;
+
+    setCancelling(true);
+    try {
+      await api.put(`/appointments/${selectedAppt._id}/cancel`);
+      alert('Your appointment has been cancelled successfully.');
+      const appts = await fetchAppointments();
+      const nextActive = appts.find(a => a._id === selectedAppt._id) || appts[0] || null;
+      setSelectedAppt(nextActive);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to cancel appointment');
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   // Fetch live queue status when selectedAppt changes
   useEffect(() => {
@@ -250,6 +282,30 @@ export default function LiveQueueTrackerPage() {
               <img src={selectedAppt.qrCode} alt="Token QR" className="w-full h-full object-contain" />
             </div>
           </div>
+
+          {/* Cancellation Option for Patient */}
+          {['scheduled', 'checked_in'].includes(selectedAppt.status) && (
+            <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div>
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">Unable to attend today?</span>
+                <span className="text-[11px] text-slate-400">Cancel appointment to free up the slot for patients behind you.</span>
+              </div>
+              <button
+                onClick={handleCancelAppointment}
+                disabled={cancelling}
+                className="w-full sm:w-auto px-4 py-2.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 text-rose-600 dark:text-rose-300 border border-rose-200 dark:border-rose-900 rounded-xl font-bold text-xs flex items-center justify-center space-x-1.5 transition flex-shrink-0"
+              >
+                <XCircle className="w-4 h-4 text-rose-500" />
+                <span>{cancelling ? 'Cancelling...' : 'Cancel Appointment'}</span>
+              </button>
+            </div>
+          )}
+
+          {selectedAppt.status === 'cancelled' && (
+            <div className="p-4 bg-rose-50 dark:bg-rose-950/40 rounded-3xl border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-200 text-xs text-center font-bold">
+              ✕ This appointment was cancelled. Your token has been released.
+            </div>
+          )}
         </div>
       </div>
 

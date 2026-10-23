@@ -10,7 +10,8 @@ const auditLogSchema = new mongoose.Schema({
     enum: [
       'HealthRecord', 'Appointment', 'Consent', 'Queue',
       'Donor', 'Donation', 'BloodUnit', 'BloodRequest', 
-      'FamilyLink', 'CommunityCard', 'DiscountApplication'
+      'FamilyLink', 'CommunityCard', 'DiscountApplication',
+      'BloodAlert', 'EmergencyCase', 'BreakGlassAccess', 'UserProfile'
     ],
     required: true 
   },

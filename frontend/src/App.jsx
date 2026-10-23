@@ -3,7 +3,6 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
 import MobileBottomNav from './components/layout/MobileBottomNav';
-import SmartCareChatWidget from './components/chatbot/SmartCareChatWidget';
 
 // Pages
 import LandingPage from './pages/landing/LandingPage';
@@ -21,7 +20,8 @@ import DoctorDashboard from './pages/doctor/DoctorDashboard';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import BloodBankDashboard from './pages/lifeshare/BloodBankDashboard';
 import WaitingRoomDisplayPage from './pages/public/WaitingRoomDisplayPage';
-import FullAssistantPage from './pages/ai/FullAssistantPage';
+import UserProfilePage from './pages/profile/UserProfilePage';
+import DoctorEmergencyViewPage from './pages/doctor/DoctorEmergencyViewPage';
 
 export default function App() {
   const location = useLocation();
@@ -48,14 +48,14 @@ export default function App() {
           <Route path="/admin-overview" element={<AdminDashboard />} />
           <Route path="/blood-bank-officer" element={<BloodBankDashboard />} />
           <Route path="/waiting-room-display" element={<WaitingRoomDisplayPage />} />
-          <Route path="/ai-assistant" element={<FullAssistantPage />} />
+          <Route path="/my-profile" element={<UserProfilePage />} />
+          <Route path="/emergency-desk" element={<DoctorEmergencyViewPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
 
       {!isDisplayScreen && <Footer />}
       {!isDisplayScreen && <MobileBottomNav />}
-      {!isDisplayScreen && <SmartCareChatWidget />}
     </div>
   );
 }

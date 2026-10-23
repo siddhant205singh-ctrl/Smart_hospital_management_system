@@ -35,6 +35,49 @@ const userSchema = new mongoose.Schema({
     highContrast: { type: Boolean, default: false }
   },
   donorProfileId: { type: mongoose.Schema.Types.ObjectId, ref: 'Donor' },
+  gender: { type: String, enum: ['male', 'female', 'other'] },
+  dateOfBirth: { type: Date },
+  cityArea: { type: String, default: '' },
+  locationCoordinates: { lat: Number, lng: Number },
+  emergencyContact: {
+    name: String,
+    relationship: String,
+    phone: String
+  },
+  notificationPreferences: {
+    channels: {
+      inApp: { type: Boolean, default: true },
+      email: { type: Boolean, default: true },
+      sms: { type: Boolean, default: true }
+    },
+    types: {
+      appointments: { type: Boolean, default: true },
+      queue: { type: Boolean, default: true },
+      reminders: { type: Boolean, default: true },
+      bloodAlerts: { type: Boolean, default: true },
+      emergency: { type: Boolean, default: true }
+    }
+  },
+  privacySettings: {
+    shareWithConsultingDoctors: { type: Boolean, default: true },
+    showInDonorDirectory: { type: Boolean, default: true },
+    allowEmergencyBreakGlass: { type: Boolean, default: true }
+  },
+  patientHealth: {
+    bloodGroup: { type: String, enum: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] },
+    bloodGroupSource: { type: String, enum: ['self_declared', 'verified'], default: 'self_declared' },
+    heightCm: Number,
+    weightKg: Number,
+    allergies: [{ type: String }],
+    existingConditions: [{ type: String }],
+    currentMedicines: [{ name: String, dosage: String, frequency: String }],
+    pastSurgeries: [{ surgery: String, year: Number }]
+  },
+  donorSettings: {
+    willingToDonate: { type: Boolean, default: false },
+    lastDonationDate: Date
+  },
+  profileCompletenessScore: { type: Number, default: 35 },
   refreshToken: { type: String }
 }, {
   timestamps: true

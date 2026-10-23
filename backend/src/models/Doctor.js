@@ -5,7 +5,17 @@ const doctorSchema = new mongoose.Schema({
   hospitalId: { type: mongoose.Schema.Types.ObjectId, ref: 'Hospital', required: true, index: true },
   departmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Department', required: true, index: true },
   specialty: { type: String, required: true },
-  qualifications: [{ type: String }],
+  qualifications: [{
+    degree: { type: String, required: true },
+    institution: { type: String, required: true },
+    year: { type: Number, required: true }
+  }],
+  subSpecialties: [String],
+  medicalCouncilRegNumber: { type: String, trim: true },
+  isVerified: { type: Boolean, default: false },
+  verifiedByAdminId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  verifiedAt: { type: Date },
+  bio: { type: String, default: '' },
   languages: [{ type: String, default: ['English', 'Hindi'] }],
   experienceYears: { type: Number, default: 5 },
   consultationFee: { type: Number, default: 500 },

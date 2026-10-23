@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
+import RaiseBloodAlertModal from './RaiseBloodAlertModal';
 import {
   Droplet,
   Shield,
@@ -12,14 +13,18 @@ import {
   Sparkles,
   Users,
   Search,
-  PackageCheck
+  PackageCheck,
+  Radio,
+  CheckCircle2
 } from 'lucide-react';
 
 export default function BloodBankDashboard() {
   const [bloodRequests, setBloodRequests] = useState([]);
   const [inventory, setInventory] = useState([]);
+  const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showDonationModal, setShowDonationModal] = useState(false);
+  const [showAlertModal, setShowAlertModal] = useState(false);
 
   // New Verified Donation Form
   const [donationForm, setDonationForm] = useState({
@@ -35,12 +40,14 @@ export default function BloodBankDashboard() {
 
   const fetchData = async () => {
     try {
-      const [reqsRes, invRes] = await Promise.all([
+      const [reqsRes, invRes, alertsRes] = await Promise.all([
         api.get('/blood-requests'),
-        api.get('/blood-inventory/public')
+        api.get('/blood-inventory/public'),
+        api.get('/blood-alerts/active')
       ]);
       setBloodRequests(reqsRes.data.requests || []);
       setInventory(invRes.data.inventory || []);
+      setAlerts(alertsRes.data.alerts || []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -85,6 +92,16 @@ export default function BloodBankDashboard() {
     }
   };
 
+  const handleFulfillAlert = async (alertId) => {
+    try {
+      await api.put(`/blood-alerts/${alertId}/fulfill`);
+      alert('Alert marked fulfilled and thank-you push dispatched to responders.');
+      fetchData();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to fulfill alert');
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       {/* Header Banner */}
@@ -104,14 +121,90 @@ export default function BloodBankDashboard() {
           </p>
         </div>
 
-        <button
-          onClick={() => setShowDonationModal(true)}
-          className="px-5 py-2.5 bg-white text-rose-700 hover:bg-rose-50 font-bold text-xs rounded-xl shadow-lg transition flex items-center space-x-1.5 flex-shrink-0"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Record Verified Donation</span>
-        </button>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-shrink-0 w-full sm:w-auto">
+          <button
+            onClick={() => setShowAlertModal(true)}
+            className="px-4 py-2.5 bg-rose-950 hover:bg-rose-900 text-white font-bold text-xs rounded-xl shadow-lg transition flex items-center justify-center space-x-1.5"
+          >
+            <Radio className="w-4 h-4 text-rose-400 animate-pulse" />
+            <span>Raise Shortage Alert</span>
+          </button>
+
+          <button
+            onClick={() => setShowDonationModal(true)}
+            className="px-5 py-2.5 bg-white text-rose-700 hover:bg-rose-50 font-bold text-xs rounded-xl shadow-lg transition flex items-center justify-center space-x-1.5"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Record Verified Donation</span>
+          </button>
+        </div>
       </div>
+
+      {/* Active Shortage Alerts Panel */}
+      {alerts.length > 0 && (
+        <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border-2 border-rose-200 dark:border-rose-900/60 shadow-md space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <span className="w-3 h-3 rounded-full bg-rose-500 animate-ping"></span>
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+                Active Hospital Blood Shortage Broadcasts ({alerts.length})
+              </h2>
+            </div>
+            <span className="text-xs font-semibold text-rose-600">Real-time Donor Matching Active</span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {alerts.map((alt) => (
+              <div
+                key={alt._id}
+                className="p-4 rounded-2xl border border-rose-200 dark:border-rose-900 bg-rose-50/50 dark:bg-rose-950/20 space-y-3"
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <span className="text-2xl font-black text-rose-600 block">{alt.bloodGroup}</span>
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-100">{alt.component}</span>
+                    <span className="text-[11px] text-slate-500 block">{alt.hospitalId?.name}</span>
+                  </div>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                      alt.urgency === 'Critical'
+                        ? 'bg-rose-600 text-white'
+                        : 'bg-amber-100 text-amber-800'
+                    }`}
+                  >
+                    {alt.urgency}
+                  </span>
+                </div>
+
+                <div className="p-2.5 bg-white dark:bg-slate-900 rounded-xl border text-xs space-y-1">
+                  <div className="flex justify-between font-bold">
+                    <span>Units Required:</span>
+                    <span>{alt.unitsNeeded}</span>
+                  </div>
+                  <div className="flex justify-between text-teal-700 dark:text-teal-300 font-bold">
+                    <span>Eligible Matched Donors:</span>
+                    <span>{alt.matchedUsersCount || 0}</span>
+                  </div>
+                  <div className="flex justify-between text-emerald-700 dark:text-emerald-300 font-bold">
+                    <span>Confirmed "Can Donate":</span>
+                    <span>{alt.responseStats?.canDonateCount || 0}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between text-[11px] pt-1">
+                  <span className="text-slate-400">Desk: {alt.contactDesk}</span>
+                  <button
+                    onClick={() => handleFulfillAlert(alt._id)}
+                    className="px-3 py-1 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-bold text-xs"
+                  >
+                    Mark Fulfilled ✓
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Priority Allocation Queue */}
       <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
@@ -345,6 +438,13 @@ export default function BloodBankDashboard() {
           </div>
         </div>
       )}
+
+      {/* Raise Blood Shortage Alert Modal */}
+      <RaiseBloodAlertModal
+        isOpen={showAlertModal}
+        onClose={() => setShowAlertModal(false)}
+        onAlertCreated={() => fetchData()}
+      />
     </div>
   );
 }

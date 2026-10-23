@@ -17,6 +17,9 @@ const lifeShareRoutes = require('./routes/lifeShareRoutes');
 const aiRoutes = require('./routes/aiRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const profileRoutes = require('./routes/profileRoutes');
+const bloodAlertRoutes = require('./routes/bloodAlertRoutes');
+const emergencyRoutes = require('./routes/emergencyRoutes');
 
 const app = express();
 
@@ -67,6 +70,9 @@ app.use('/api/consent', consentRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/profile', profileRoutes);
+app.use('/api/blood-alerts', bloodAlertRoutes);
+app.use('/api/emergency-cases', emergencyRoutes);
 
 // LifeShare Voluntary Blood Donor Program routes
 app.use('/api', lifeShareRoutes);

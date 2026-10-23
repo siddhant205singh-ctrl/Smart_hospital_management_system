@@ -24,11 +24,13 @@ import {
   Building2,
   FileText,
   ShieldCheck,
-  Scale
+  Scale,
+  ShieldAlert
 } from 'lucide-react';
+import EmergencyIntakeModal from '../emergency/EmergencyIntakeModal';
 
 export default function Navbar() {
-  const { user, logout, quickSwitchDemoRole } = useAuth();
+  const { user, logout } = useAuth();
   const { darkMode, toggleDarkMode, largeFont, toggleLargeFont, currentLanguage, changeLanguage } = useThemeA11y();
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -39,6 +41,7 @@ export default function Navbar() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showEmergencyModal, setShowEmergencyModal] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -70,47 +73,6 @@ export default function Navbar() {
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-200/80 bg-white/95 backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/95 shadow-sm">
-      {/* Top Demo Bar for Judges (Horizontally scrollable on mobile) */}
-      <div className="bg-gradient-to-r from-teal-700 via-teal-600 to-cyan-700 px-3 sm:px-4 py-1.5 text-xs text-white overflow-x-auto no-scrollbar">
-        <div className="min-w-max flex items-center justify-between gap-4">
-          <div className="flex items-center space-x-2">
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white/20 text-white">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 animate-pulse"></span>
-              3 Connected Hospitals Live
-            </span>
-            <span className="hidden sm:inline text-teal-100 text-[11px]">Dynamic Wait Engine & LifeShare Active</span>
-          </div>
-
-          <div className="flex items-center space-x-1.5 text-[11px]">
-            <span className="text-teal-200 font-medium text-[10px] sm:text-[11px]">Quick Demo:</span>
-            <button
-              onClick={() => quickSwitchDemoRole('patient@smartcare.hospital')}
-              className="px-2 py-0.5 rounded bg-white/20 hover:bg-white/30 transition text-white font-medium text-[10px] sm:text-[11px]"
-            >
-              Patient
-            </button>
-            <button
-              onClick={() => quickSwitchDemoRole('doctor1@smartcare.hospital')}
-              className="px-2 py-0.5 rounded bg-white/20 hover:bg-white/30 transition text-white font-medium text-[10px] sm:text-[11px]"
-            >
-              Doctor
-            </button>
-            <button
-              onClick={() => quickSwitchDemoRole('admin@smartcare.hospital')}
-              className="px-2 py-0.5 rounded bg-white/20 hover:bg-white/30 transition text-white font-medium text-[10px] sm:text-[11px]"
-            >
-              Admin
-            </button>
-            <button
-              onClick={() => quickSwitchDemoRole('bloodofficer@smartcare.hospital')}
-              className="px-2 py-0.5 rounded bg-rose-500/90 hover:bg-rose-500 transition text-white font-medium text-[10px] sm:text-[11px]"
-            >
-              Blood Officer
-            </button>
-          </div>
-        </div>
-      </div>
-
       {/* Main Navbar */}
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
         {/* Brand Logo */}
@@ -160,9 +122,15 @@ export default function Navbar() {
                 </>
               )}
               {user.role === 'doctor' && (
-                <Link to="/doctor-console" className="px-3 py-2 rounded-lg font-semibold text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-950/40 transition">
-                  Doctor Console
-                </Link>
+                <>
+                  <Link to="/doctor-console" className="px-3 py-2 rounded-lg font-semibold text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-950/40 transition">
+                    Doctor Console
+                  </Link>
+                  <Link to="/emergency-desk" className="px-3 py-2 rounded-lg font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition flex items-center space-x-1">
+                    <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
+                    <span>ER Desk</span>
+                  </Link>
+                </>
               )}
               {(user.role === 'admin' || user.role === 'receptionist') && (
                 <Link to="/admin-overview" className="px-3 py-2 rounded-lg font-semibold text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-950/40 transition">
@@ -180,6 +148,16 @@ export default function Navbar() {
 
         {/* Right Tools & Profile */}
         <div className="flex items-center space-x-1 sm:space-x-2">
+          {/* Emergency Intake Button */}
+          <button
+            onClick={() => setShowEmergencyModal(true)}
+            className="px-2.5 sm:px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-xs shadow-md shadow-rose-600/30 flex items-center space-x-1 transition flex-shrink-0 animate-pulse"
+            title="Emergency Triage & 112 Call"
+          >
+            <ShieldAlert className="w-4 h-4" />
+            <span className="hidden xs:inline">Emergency</span>
+          </button>
+
           {/* Language Switcher */}
           <div className="relative group">
             <button
@@ -302,6 +280,14 @@ export default function Navbar() {
                     className="block px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700/50 text-slate-700 dark:text-slate-200"
                   >
                     User Dashboard
+                  </Link>
+                  <Link
+                    to="/my-profile"
+                    onClick={() => setShowUserMenu(false)}
+                    className="block px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700/50 text-slate-700 dark:text-slate-200 flex items-center space-x-1.5"
+                  >
+                    <User className="w-3.5 h-3.5 text-teal-600" />
+                    <span>My Profile</span>
                   </Link>
                   <button
                     onClick={() => { setShowUserMenu(false); logout(); navigate('/'); }}
@@ -441,6 +427,17 @@ export default function Navbar() {
               <span>Consent & Privacy Manager</span>
             </Link>
 
+            {user && (
+              <Link
+                to="/my-profile"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center space-x-2.5 p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition text-teal-700 dark:text-teal-300 font-bold"
+              >
+                <User className="w-4 h-4 text-teal-600" />
+                <span>My Profile & Health Settings</span>
+              </Link>
+            )}
+
             {/* Role Consoles */}
             {user?.role === 'doctor' && (
               <Link
@@ -520,6 +517,12 @@ export default function Navbar() {
           </div>
         </div>
       )}
+
+      {/* Emergency Intake Modal */}
+      <EmergencyIntakeModal
+        isOpen={showEmergencyModal}
+        onClose={() => setShowEmergencyModal(false)}
+      />
     </header>
   );
 }

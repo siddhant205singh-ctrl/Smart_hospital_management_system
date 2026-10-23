@@ -6,10 +6,12 @@ const notificationSchema = new mongoose.Schema({
     type: String, 
     enum: [
       'queue_update', 'leave_now', 'token_called', 'appointment_booked', 
-      'report_ready', 'reminder', 'blood_urgent_need', 'eligibility_restored'
+      'report_ready', 'reminder', 'blood_urgent_need', 'eligibility_restored',
+      'blood_shortage_alert', 'blood_alert_response', 'emergency_case', 'break_glass_alert', 'profile_update'
     ],
     required: true 
   },
+  deliveryStatus: { type: String, enum: ['pending', 'delivered', 'failed'], default: 'delivered' },
   title: { type: String, required: true },
   message: { type: String, required: true },
   channel: { type: String, enum: ['in_app', 'email', 'sms'], default: 'in_app' },

@@ -22,6 +22,10 @@ const FamilyLink = require('../models/FamilyLink');
 const CommunityCard = require('../models/CommunityCard');
 const DiscountRule = require('../models/DiscountRule');
 const DiscountApplication = require('../models/DiscountApplication');
+const BloodAlert = require('../models/BloodAlert');
+const BloodAlertResponse = require('../models/BloodAlertResponse');
+const EmergencyCase = require('../models/EmergencyCase');
+const BreakGlassAccessLog = require('../models/BreakGlassAccessLog');
 
 const seedData = async (shouldExit = true) => {
   try {
@@ -48,7 +52,11 @@ const seedData = async (shouldExit = true) => {
       FamilyLink.deleteMany({}),
       CommunityCard.deleteMany({}),
       DiscountRule.deleteMany({}),
-      DiscountApplication.deleteMany({})
+      DiscountApplication.deleteMany({}),
+      BloodAlert.deleteMany({}),
+      BloodAlertResponse.deleteMany({}),
+      EmergencyCase.deleteMany({}),
+      BreakGlassAccessLog.deleteMany({})
     ]);
 
     console.log('[Seed] Seeding 3 Connected Hospitals...');
@@ -155,6 +163,38 @@ const seedData = async (shouldExit = true) => {
       phone: '+91-9810123456',
       role: 'patient',
       avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80',
+      gender: 'male',
+      dateOfBirth: new Date('1992-05-14'),
+      cityArea: 'South Delhi, New Delhi',
+      emergencyContact: {
+        name: 'Priya Sharma',
+        relationship: 'spouse',
+        phone: '+91-9810112233'
+      },
+      notificationPreferences: {
+        channels: { inApp: true, email: true, sms: true },
+        types: { appointments: true, queue: true, reminders: true, bloodAlerts: true, emergency: true }
+      },
+      privacySettings: {
+        shareWithConsultingDoctors: true,
+        showInDonorDirectory: true,
+        allowEmergencyBreakGlass: true
+      },
+      patientHealth: {
+        bloodGroup: 'B+',
+        bloodGroupSource: 'verified',
+        heightCm: 178,
+        weightKg: 74,
+        allergies: ['Penicillin'],
+        existingConditions: ['Mild Asthma'],
+        currentMedicines: [{ name: 'Levocetirizine', dosage: '5mg', frequency: 'PRN' }],
+        pastSurgeries: []
+      },
+      donorSettings: {
+        willingToDonate: true,
+        lastDonationDate: new Date(Date.now() - 105 * 24 * 3600 * 1000)
+      },
+      profileCompletenessScore: 95,
       familyMembers: [
         { name: 'Priya Sharma', relation: 'spouse', age: 32, gender: 'female', bloodGroup: 'B+', allergies: ['Penicillin'] },
         { name: 'Aarav Sharma', relation: 'child', age: 7, gender: 'male', bloodGroup: 'O+', allergies: [] },
@@ -225,7 +265,17 @@ const seedData = async (shouldExit = true) => {
         hospitalId: hospitals[p.hospitalIdx]._id,
         departmentId: dept._id,
         specialty: p.specialty,
-        qualifications: ['MBBS', 'MD', 'DNB'],
+        qualifications: [
+          { degree: 'MBBS', institution: 'AIIMS New Delhi', year: 2010 },
+          { degree: 'MD', institution: 'Maulana Azad Medical College', year: 2014 },
+          { degree: 'DNB', institution: 'National Board of Examinations', year: 2016 }
+        ],
+        subSpecialties: [p.specialty + ' Care', 'Interventional Therapeutics'],
+        medicalCouncilRegNumber: `MCI-${10000 + i * 237}`,
+        isVerified: i < 14,
+        verifiedByAdminId: i < 14 ? adminUser._id : undefined,
+        verifiedAt: i < 14 ? new Date(Date.now() - 30 * 86400000) : undefined,
+        bio: `Experienced specialist in ${p.specialty} with ${p.exp} years of distinguished clinical practice.`,
         languages: p.languages,
         experienceYears: p.exp,
         consultationFee: p.fee,
@@ -549,6 +599,99 @@ const seedData = async (shouldExit = true) => {
         isActive: true
       });
     }
+
+    // Seed Active Blood Shortage Alert (B+ Packed Red Blood Cells at Apollo)
+    console.log('[Seed] Seeding Active Blood Shortage Alert...');
+    const activeBloodAlert = await BloodAlert.create({
+      hospitalId: hospitals[0]._id,
+      raisedBy: bloodOfficerUser._id,
+      bloodGroup: 'B+',
+      component: 'Packed Red Blood Cells (PRBC)',
+      unitsNeeded: 4,
+      unitsFulfilled: 1,
+      urgency: 'Critical',
+      matchingMode: 'exact_match',
+      contactDesk: 'Emergency Blood Bank Desk, Ground Floor (Desk 3)',
+      contactPhone: '+91-11-26925858 Ext 104',
+      radiusKm: 25,
+      expiresAt: new Date(Date.now() + 48 * 3600 * 1000),
+      status: 'active',
+      matchedUsersCount: 1,
+      responseStats: {
+        canDonateCount: 0,
+        unavailableCount: 0
+      },
+      autoTriggerSuggested: false
+    });
+
+    // Seed Active Emergency Cases for Doctor ER Desk
+    console.log('[Seed] Seeding Emergency Cases & Break-Glass Protocol Records...');
+    const emergencyCase1 = await EmergencyCase.create({
+      caseNumber: 'EM-2026-9042',
+      patientId: patientUser._id,
+      submittedBy: {
+        userId: patientUser._id,
+        name: 'Rahul Sharma',
+        relationship: 'self',
+        isBystander: false
+      },
+      hospitalId: hospitals[0]._id,
+      assignedDoctorId: primaryDoctor._id,
+      chiefComplaint: 'chest_pain',
+      complaintDescription: 'Acute retrosternal crushing pain radiating to left arm with diaphoresis and mild nausea.',
+      severityScore: 9,
+      symptomOnset: 'within_1_hour',
+      triagePriority: 'P1_CRITICAL_RESUSCITATION',
+      prefilledHealthSnapshot: {
+        bloodGroup: 'B+',
+        allergies: ['Penicillin'],
+        existingConditions: ['Mild Asthma'],
+        currentMedicines: ['Levocetirizine 5mg']
+      },
+      status: 'waiting',
+      breakGlassUsed: true
+    });
+
+    const emergencyCase2 = await EmergencyCase.create({
+      caseNumber: 'EM-2026-9043',
+      patientId: patientRoy._id,
+      submittedBy: {
+        userId: patientRoy._id,
+        name: 'Pooja Roy (Sister)',
+        relationship: 'sibling',
+        isBystander: true
+      },
+      hospitalId: hospitals[0]._id,
+      assignedDoctorId: primaryDoctor._id,
+      chiefComplaint: 'breathing_difficulty',
+      complaintDescription: 'Sudden onset severe dyspnea, wheezing, unable to speak in full sentences.',
+      severityScore: 7,
+      symptomOnset: '1_to_3_hours',
+      triagePriority: 'P2_EMERGENT',
+      prefilledHealthSnapshot: {
+        bloodGroup: 'O+',
+        allergies: [],
+        existingConditions: ['Asthma'],
+        currentMedicines: ['Salbutamol Inhaler']
+      },
+      status: 'under_treatment',
+      breakGlassUsed: false
+    });
+
+    // Seed Break-Glass Access Log for Case 1
+    await BreakGlassAccessLog.create({
+      emergencyCaseId: emergencyCase1._id,
+      doctorId: seededDoctors[0].userId,
+      doctorName: 'Dr. Anita Desai',
+      patientId: patientUser._id,
+      reason: 'acute_cardiac_arrest',
+      clinicalJustification: 'Critical chest pain suggestive of STEMI. Immediate read-only record inspection required to prevent drug interactions (Penicillin allergy verified).',
+      accessedAt: new Date(Date.now() - 20 * 60 * 1000),
+      expiresAt: new Date(Date.now() + 23.6 * 3600 * 1000),
+      recordsViewed: ['Patient Full Profile', 'Medication History', 'Allergy Registry', 'Past Timeline Notes'],
+      patientNotified: true,
+      flaggedByAdmin: false
+    });
 
     console.log('\n======================================================');
     console.log('✅ SmartCare + LifeShare Database Seeded Successfully!');

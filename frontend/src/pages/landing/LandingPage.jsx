@@ -17,8 +17,10 @@ import {
   Calendar,
   PhoneCall,
   Bell,
-  FileText
+  FileText,
+  ShieldAlert
 } from 'lucide-react';
+import EmergencyIntakeModal from '../../components/emergency/EmergencyIntakeModal';
 
 export default function LandingPage() {
   const { t } = useTranslation();
@@ -26,6 +28,7 @@ export default function LandingPage() {
   const [hospitals, setHospitals] = useState([]);
   const [bloodStock, setBloodStock] = useState([]);
   const [searchDoctor, setSearchDoctor] = useState('');
+  const [showEmergencyModal, setShowEmergencyModal] = useState(false);
 
   useEffect(() => {
     api.get('/hospitals')
@@ -88,6 +91,13 @@ export default function LandingPage() {
 
               {/* CTAs */}
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 pt-2">
+                <button
+                  onClick={() => setShowEmergencyModal(true)}
+                  className="px-5 py-3 bg-rose-600 hover:bg-rose-700 text-white font-black text-xs rounded-xl shadow-lg shadow-rose-600/30 transition flex items-center justify-center space-x-1.5 animate-pulse"
+                >
+                  <ShieldAlert className="w-4 h-4" />
+                  <span>Emergency Triage</span>
+                </button>
                 <Link
                   to="/doctors"
                   className="px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-lg shadow-teal-600/25 transition flex items-center justify-center space-x-2"
@@ -341,15 +351,21 @@ export default function LandingPage() {
 
           <div className="p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-lg transition">
             <div className="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-950 flex items-center justify-center text-rose-600 mb-4">
-              <Sparkles className="w-6 h-6" />
+              <ShieldAlert className="w-6 h-6 text-rose-600" />
             </div>
-            <h3 className="font-bold text-base text-slate-900 dark:text-white">SmartCare AI Concierge</h3>
+            <h3 className="font-bold text-base text-slate-900 dark:text-white">Emergency Response & Break-Glass</h3>
             <p className="text-xs text-slate-500 mt-2 leading-relaxed">
-              Powered by Google Gemini with clinical triage safety triggers, symptom-to-specialist recommendations, appointment lookups, and multilingual support in Hindi and English.
+              Rules-based clinical triage with direct 112 calling, auto-attached patient health snapshots, and cryptographically logged 24-hour break-glass access for emergency resuscitations.
             </p>
           </div>
         </div>
       </section>
+
+      {/* Emergency Intake Modal */}
+      <EmergencyIntakeModal
+        isOpen={showEmergencyModal}
+        onClose={() => setShowEmergencyModal(false)}
+      />
     </div>
   );
 }

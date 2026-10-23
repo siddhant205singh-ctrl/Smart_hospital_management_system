@@ -136,6 +136,18 @@ exports.cancelAppointment = async (req, res, next) => {
     const appointment = await Appointment.findById(req.params.id);
     if (!appointment) return res.status(404).json({ error: 'Appointment not found' });
 
+    // Ensure only the patient who booked it, or hospital staff (admin/receptionist/doctor) can cancel
+    if (
+      appointment.patientId.toString() !== req.user._id.toString() &&
+      !['admin', 'receptionist', 'doctor'].includes(req.user.role)
+    ) {
+      return res.status(403).json({ error: 'Not authorized to cancel this appointment' });
+    }
+
+    if (['completed', 'cancelled'].includes(appointment.status)) {
+      return res.status(400).json({ error: `Cannot cancel an appointment that is already ${appointment.status}` });
+    }
+
     appointment.status = 'cancelled';
     await appointment.save();
 

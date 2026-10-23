@@ -6,7 +6,7 @@ const { logAudit } = require('../middleware/auditMiddleware');
 // Multi-hospital doctor search & filtering
 exports.getDoctors = async (req, res, next) => {
   try {
-    const { specialty, hospitalId, language, liveStatus, search } = req.query;
+    const { specialty, hospitalId, language, liveStatus, search, verifiedOnly, minRating } = req.query;
     let query = {};
 
     if (specialty) {
@@ -21,6 +21,12 @@ exports.getDoctors = async (req, res, next) => {
     if (liveStatus) {
       query.liveStatus = liveStatus;
     }
+    if (verifiedOnly === 'true') {
+      query.isVerified = true;
+    }
+    if (minRating) {
+      query.rating = { $gte: Number(minRating) };
+    }
 
     let doctors = await Doctor.find(query)
       .populate('userId', 'name email phone avatar')
@@ -32,7 +38,8 @@ exports.getDoctors = async (req, res, next) => {
       doctors = doctors.filter(doc => 
         doc.userId?.name?.toLowerCase().includes(term) ||
         doc.specialty?.toLowerCase().includes(term) ||
-        doc.hospitalId?.name?.toLowerCase().includes(term)
+        doc.hospitalId?.name?.toLowerCase().includes(term) ||
+        doc.medicalCouncilRegNumber?.toLowerCase().includes(term)
       );
     }
 
@@ -141,6 +148,71 @@ exports.updateLiveStatus = async (req, res, next) => {
     }
 
     res.json({ success: true, liveStatus: doctor.liveStatus });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @route   GET /api/doctors/:id/full-profile
+exports.getFullDoctorProfile = async (req, res, next) => {
+  try {
+    const doctor = await Doctor.findById(req.params.id)
+      .populate('userId', 'name email phone avatar')
+      .populate('hospitalId', 'name city address emergencyContact')
+      .populate('departmentId', 'name code floor');
+
+    if (!doctor) return res.status(404).json({ error: 'Doctor not found' });
+
+    // Compute today's waiting queue & estimated wait
+    const today = new Date().toISOString().split('T')[0];
+    const waitingAppts = await Appointment.find({
+      doctorId: doctor._id,
+      date: today,
+      status: { $in: ['scheduled', 'checked_in', 'called'] }
+    }).countDocuments();
+
+    const currentServing = await Appointment.findOne({
+      doctorId: doctor._id,
+      date: today,
+      status: 'in_consultation'
+    }).select('tokenNumber');
+
+    const estimatedWaitMinutes = waitingAppts * (doctor.avgConsultationTime || 15);
+
+    res.json({
+      success: true,
+      doctor,
+      liveQueueMetrics: {
+        waitingCount: waitingAppts,
+        currentServingToken: currentServing?.tokenNumber || null,
+        estimatedWaitMinutes
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @route   PUT /api/doctors/:id/verify (Admin Only)
+exports.verifyDoctor = async (req, res, next) => {
+  try {
+    const doctor = await Doctor.findById(req.params.id);
+    if (!doctor) return res.status(404).json({ error: 'Doctor not found' });
+
+    doctor.isVerified = true;
+    doctor.verifiedByAdminId = req.user._id;
+    doctor.verifiedAt = new Date();
+    await doctor.save();
+
+    await logAudit(req, 'DoctorVerified', 'Doctor', doctor._id, null, {
+      medicalCouncilRegNumber: doctor.medicalCouncilRegNumber
+    });
+
+    res.json({
+      success: true,
+      message: 'Doctor credentials verified and Verified Badge awarded.',
+      doctor
+    });
   } catch (error) {
     next(error);
   }

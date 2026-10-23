@@ -47,17 +47,20 @@ export default function AdminDashboard() {
   const [isAdmissionLinked, setIsAdmissionLinked] = useState(false);
   const [discountResult, setDiscountResult] = useState(null);
   const [discountError, setDiscountError] = useState('');
+  const [breakGlassLogs, setBreakGlassLogs] = useState([]);
 
   const fetchData = async () => {
     try {
-      const [overRes, analRes, docsRes] = await Promise.all([
+      const [overRes, analRes, docsRes, bgRes] = await Promise.all([
         api.get('/admin/overview'),
         api.get('/admin/analytics'),
-        api.get('/doctors')
+        api.get('/doctors'),
+        api.get('/emergency-cases/break-glass-logs').catch(() => ({ data: { logs: [] } }))
       ]);
       setOverview(overRes.data);
       setAnalytics(analRes.data);
       setDoctors(docsRes.data.doctors || []);
+      setBreakGlassLogs(bgRes.data.logs || []);
       if (docsRes.data.doctors?.length > 0) {
         setWalkinDoctorId(docsRes.data.doctors[0]._id);
       }
@@ -103,6 +106,28 @@ export default function AdminDashboard() {
       setDiscountResult(res.data);
     } catch (err) {
       setDiscountError(err.response?.data?.error || 'Failed to apply discount');
+    }
+  };
+
+  const handleVerifyDoctor = async (docId) => {
+    try {
+      await api.put(`/doctors/${docId}/verify`);
+      alert('Doctor credentials verified! Verified Doctor Badge awarded.');
+      fetchData();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to verify doctor');
+    }
+  };
+
+  const handleFlagMisuse = async (logId) => {
+    const reason = prompt('Enter clinical audit reason for flagging this Break-Glass access:', 'Suspected unauthorized access without clinical resuscitation need');
+    if (!reason) return;
+    try {
+      await api.put(`/emergency-cases/break-glass/${logId}/flag`, { adminReviewNotes: reason });
+      alert('Break-Glass access flagged for clinical governance hearing.');
+      fetchData();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to flag misuse');
     }
   };
 
@@ -418,6 +443,128 @@ export default function AdminDashboard() {
               Verify Card & Apply Tier Discount
             </button>
           </form>
+        </div>
+      </div>
+
+      {/* Break-Glass Governance Audit Logs */}
+      <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-bold text-base text-slate-900 dark:text-white flex items-center space-x-2">
+              <ShieldCheck className="w-5 h-5 text-rose-600" />
+              <span>Emergency Break-Glass Access Audit Logs ({breakGlassLogs.length})</span>
+            </h3>
+            <p className="text-xs text-slate-500">
+              Statutory clinical governance review for all 24-hour emergency records unmasked without consent.
+            </p>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto -mx-6 px-6 sm:mx-0 sm:px-0">
+          <table className="w-full text-left text-xs min-w-[700px]">
+            <thead>
+              <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400">
+                <th className="pb-2.5">Case #</th>
+                <th className="pb-2.5">Physician</th>
+                <th className="pb-2.5">Patient</th>
+                <th className="pb-2.5">Clinical Reason & Justification</th>
+                <th className="pb-2.5">Records Inspected</th>
+                <th className="pb-2.5">Timestamp</th>
+                <th className="pb-2.5 text-right">Governance Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {breakGlassLogs.length === 0 ? (
+                <tr>
+                  <td colSpan="7" className="py-4 text-center text-slate-400">No emergency break-glass accesses recorded.</td>
+                </tr>
+              ) : (
+                breakGlassLogs.map(log => (
+                  <tr key={log._id} className="py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                    <td className="py-2.5 font-mono font-bold text-slate-900 dark:text-white">
+                      {log.emergencyCaseId?.caseNumber || 'EM-CASE'}
+                    </td>
+                    <td className="py-2.5 font-bold text-teal-700 dark:text-teal-300">
+                      Dr. {log.doctorId?.name || log.doctorName}
+                    </td>
+                    <td className="py-2.5 font-semibold text-slate-800 dark:text-slate-200">
+                      {log.patientId?.name}
+                    </td>
+                    <td className="py-2.5 max-w-xs">
+                      <strong className="block text-rose-600 capitalize text-[11px]">{log.reason?.replace(/_/g, ' ')}</strong>
+                      <span className="text-slate-500 text-[10px] truncate block">{log.clinicalJustification}</span>
+                    </td>
+                    <td className="py-2.5 text-[10px] text-slate-400">
+                      {log.recordsViewed?.slice(0, 2).join(', ')}...
+                    </td>
+                    <td className="py-2.5 text-slate-400 text-[10px]">
+                      {new Date(log.accessedAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                    </td>
+                    <td className="py-2.5 text-right">
+                      {log.flaggedByAdmin ? (
+                        <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 font-bold text-[10px]">
+                          Flagged for Review
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => handleFlagMisuse(log._id)}
+                          className="px-2.5 py-1 bg-slate-100 hover:bg-rose-100 hover:text-rose-700 rounded-lg font-bold text-[10px] transition"
+                        >
+                          Flag Misuse
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Doctor Medical Council Verification Desk */}
+      <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+        <h3 className="font-bold text-base text-slate-900 dark:text-white flex items-center space-x-2">
+          <Stethoscope className="w-5 h-5 text-teal-600" />
+          <span>Medical Council Registration Verification Desk</span>
+        </h3>
+        <p className="text-xs text-slate-500">
+          Verify registered specialist credentials to award the official Verified Doctor Badge.
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {doctors.map(doc => (
+            <div
+              key={doc._id}
+              className="p-4 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 flex items-center justify-between"
+            >
+              <div>
+                <div className="flex items-center space-x-1.5">
+                  <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white">
+                    {doc.userId?.name}
+                  </span>
+                  {doc.isVerified && (
+                    <span className="text-[10px] text-emerald-600 font-bold">✓ Verified</span>
+                  )}
+                </div>
+                <span className="text-xs text-teal-600 block">{doc.specialty}</span>
+                <span className="text-[10px] text-slate-400 font-mono block">
+                  Reg: {doc.medicalCouncilRegNumber || 'MCI-REG-VERIFY'}
+                </span>
+              </div>
+
+              {!doc.isVerified ? (
+                <button
+                  onClick={() => handleVerifyDoctor(doc._id)}
+                  className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-sm transition"
+                >
+                  Verify Reg
+                </button>
+              ) : (
+                <span className="text-[10px] font-bold text-emerald-600 px-2">Approved</span>
+              )}
+            </div>
+          ))}
         </div>
       </div>
     </div>

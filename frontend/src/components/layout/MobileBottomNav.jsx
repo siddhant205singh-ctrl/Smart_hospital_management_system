@@ -21,7 +21,7 @@ export default function MobileBottomNav() {
     queueLabel = 'Blood Bank';
   }
 
-  const profileRoute = user ? '/dashboard' : '/login';
+  const profileRoute = user ? '/my-profile' : '/login';
 
   return (
     <div className="fixed bottom-0 inset-x-0 z-40 md:hidden bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 shadow-lg px-2 py-1.5 flex items-center justify-around text-[10px] font-medium safe-area-pb">
