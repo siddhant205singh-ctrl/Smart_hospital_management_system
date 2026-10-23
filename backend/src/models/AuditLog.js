@@ -11,7 +11,7 @@ const auditLogSchema = new mongoose.Schema({
       'HealthRecord', 'Appointment', 'Consent', 'Queue',
       'Donor', 'Donation', 'BloodUnit', 'BloodRequest', 
       'FamilyLink', 'CommunityCard', 'DiscountApplication',
-      'BloodAlert', 'EmergencyCase', 'BreakGlassAccess', 'UserProfile'
+      'BloodAlert', 'EmergencyCase', 'BreakGlassAccess', 'UserProfile', 'MedicalReport'
     ],
     required: true 
   },

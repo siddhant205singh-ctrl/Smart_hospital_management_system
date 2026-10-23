@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../contexts/SocketContext';
 import api from '../../services/api';
@@ -15,7 +16,8 @@ import {
   Volume2,
   Calendar,
   Sparkles,
-  XCircle
+  XCircle,
+  ArrowRight
 } from 'lucide-react';
 
 export default function LiveQueueTrackerPage() {
@@ -42,13 +44,13 @@ export default function LiveQueueTrackerPage() {
     }
   };
 
-  // Fetch patient's upcoming appointments
+  // Fetch patient's upcoming appointments on mount
   useEffect(() => {
     fetchAppointments()
       .then(appts => {
-        // Default to first active appointment
-        const active = appts.find(a => ['scheduled', 'checked_in', 'called', 'in_consultation'].includes(a.status)) || appts[0];
-        if (active) setSelectedAppt(active);
+        // Only select an active appointment (do not select cancelled or completed by default)
+        const active = appts.find(a => ['scheduled', 'checked_in', 'called', 'in_consultation'].includes(a.status));
+        setSelectedAppt(active || null);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -56,19 +58,27 @@ export default function LiveQueueTrackerPage() {
   const handleCancelAppointment = async () => {
     if (!selectedAppt) return;
     const confirmed = window.confirm(
-      `Cancel your appointment (Token #${selectedAppt.tokenNumber}) with Dr. ${selectedAppt.doctorId?.userId?.name || 'Doctor'}? This will release your spot in the waiting queue.`
+      `Cancel your appointment (Token #${selectedAppt.tokenNumber}) with Dr. ${selectedAppt.doctorId?.userId?.name || 'Doctor'}? This will immediately release your spot in the waiting queue.`
     );
     if (!confirmed) return;
 
+    const cancelledId = selectedAppt._id;
     setCancelling(true);
+
+    // 1. Immediately reflect cancellation in local state
+    setAppointments(prev => prev.map(a => a._id === cancelledId ? { ...a, status: 'cancelled' } : a));
+
     try {
-      await api.put(`/appointments/${selectedAppt._id}/cancel`);
-      alert('Your appointment has been cancelled successfully.');
-      const appts = await fetchAppointments();
-      const nextActive = appts.find(a => a._id === selectedAppt._id) || appts[0] || null;
-      setSelectedAppt(nextActive);
+      await api.put(`/appointments/${cancelledId}/cancel`);
+
+      // 2. Fetch fresh list from server
+      const freshAppts = await fetchAppointments();
+      // If patient has another active appointment, switch to it, otherwise clear to null
+      const anotherActive = freshAppts.find(a => ['scheduled', 'checked_in', 'called', 'in_consultation'].includes(a.status));
+      setSelectedAppt(anotherActive || null);
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to cancel appointment');
+      fetchAppointments();
     } finally {
       setCancelling(false);
     }
@@ -76,7 +86,7 @@ export default function LiveQueueTrackerPage() {
 
   // Fetch live queue status when selectedAppt changes
   useEffect(() => {
-    if (selectedAppt) {
+    if (selectedAppt && selectedAppt.status !== 'cancelled') {
       api.get(`/queue/appointment/${selectedAppt._id}/status`)
         .then(res => {
           setQueueStatus(res.data.queueStatus);
@@ -111,9 +121,17 @@ export default function LiveQueueTrackerPage() {
       }
     });
 
+    socket.on('appointment:cancelled', (data) => {
+      setAppointments(prev => prev.map(a => a._id === data.appointmentId ? { ...a, status: 'cancelled' } : a));
+      if (selectedAppt && data.appointmentId === selectedAppt._id) {
+        setSelectedAppt(null);
+      }
+    });
+
     return () => {
       socket.off('queue:wait_time_changed');
       socket.off('queue:token_called');
+      socket.off('appointment:cancelled');
     };
   }, [socket, selectedAppt]);
 
@@ -126,27 +144,73 @@ export default function LiveQueueTrackerPage() {
     );
   }
 
+  // Active appointments list for switcher
+  const activeAppts = appointments.filter(a => ['scheduled', 'checked_in', 'called', 'in_consultation'].includes(a.status));
+  const pastAppts = appointments.filter(a => ['cancelled', 'completed'].includes(a.status));
+
   if (!selectedAppt) {
     return (
-      <div className="max-w-2xl mx-auto my-16 p-8 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 text-center shadow-lg">
-        <Clock className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-        <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">No Active Appointments Found</h2>
-        <p className="text-xs text-slate-500 mt-1">Book an appointment with any network doctor to receive your live digital token!</p>
-        <a
-          href="/doctors"
-          className="mt-5 inline-block px-5 py-2.5 bg-teal-600 text-white font-bold text-xs rounded-xl shadow-md"
+      <div className="max-w-2xl mx-auto my-12 p-6 sm:p-8 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 text-center shadow-lg space-y-6">
+        <div className="w-16 h-16 rounded-2xl bg-teal-50 dark:bg-teal-950 text-teal-600 flex items-center justify-center mx-auto shadow-sm">
+          <Clock className="w-8 h-8" />
+        </div>
+        <div>
+          <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
+            No Active Queue Appointments
+          </h2>
+          <p className="text-xs text-slate-500 max-w-md mx-auto mt-1">
+            You do not currently have any active queue tokens. Any cancelled appointments have been released.
+          </p>
+        </div>
+
+        <Link
+          to="/doctors"
+          className="inline-flex items-center space-x-2 px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-md transition"
         >
-          Find Doctors & Book →
-        </a>
+          <span>Find Doctors & Book Appointment</span>
+          <ArrowRight className="w-4 h-4" />
+        </Link>
+
+        {pastAppts.length > 0 && (
+          <div className="pt-6 border-t border-slate-100 dark:border-slate-800 text-left">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
+              Past / Cancelled Appointments ({pastAppts.length})
+            </h4>
+            <div className="space-y-2">
+              {pastAppts.map(p => (
+                <div
+                  key={p._id}
+                  className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-between text-xs"
+                >
+                  <div>
+                    <span className="font-bold text-slate-800 dark:text-slate-200 block">
+                      Token #{p.tokenNumber} ({p.tokenCode}) • Dr. {p.doctorId?.userId?.name || 'Doctor'}
+                    </span>
+                    <span className="text-[10px] text-slate-400">
+                      {p.hospitalId?.name} • {p.date} ({p.timeSlot})
+                    </span>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold capitalize ${
+                    p.status === 'cancelled'
+                      ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300'
+                      : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                  }`}>
+                    {p.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     );
   }
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-      {/* Called Alert Banner */}
+      {/* Audio alert chime simulation banner */}
       {audioAlert && (
-        <div className="p-4 bg-emerald-500 text-white rounded-2xl flex items-center justify-between shadow-xl animate-bounce">
+        <div className="p-4 bg-teal-600 text-white rounded-2xl flex items-center justify-between shadow-lg animate-bounce">
           <div className="flex items-center space-x-3">
             <Volume2 className="w-6 h-6" />
             <div>
@@ -177,17 +241,17 @@ export default function LiveQueueTrackerPage() {
           </h1>
         </div>
 
-        {/* Multi appointment dropdown if multiple exist */}
-        {appointments.length > 1 && (
+        {/* Multi appointment dropdown for active appointments */}
+        {activeAppts.length > 1 && (
           <select
             value={selectedAppt._id}
             onChange={(e) => {
               const appt = appointments.find(a => a._id === e.target.value);
-              setSelectedAppt(appt);
+              if (appt) setSelectedAppt(appt);
             }}
             className="w-full sm:w-auto px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200"
           >
-            {appointments.map(a => (
+            {activeAppts.map(a => (
               <option key={a._id} value={a._id}>
                 Token #{a.tokenNumber} ({a.tokenCode}) - Dr. {a.doctorId?.userId?.name || 'Doctor'}
               </option>
@@ -284,11 +348,11 @@ export default function LiveQueueTrackerPage() {
           </div>
 
           {/* Cancellation Option for Patient */}
-          {['scheduled', 'checked_in'].includes(selectedAppt.status) && (
+          {['scheduled', 'checked_in', 'called'].includes(selectedAppt.status) && (
             <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div>
                 <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">Unable to attend today?</span>
-                <span className="text-[11px] text-slate-400">Cancel appointment to free up the slot for patients behind you.</span>
+                <span className="text-[11px] text-slate-400">Cancel appointment to free up the slot for waiting patients.</span>
               </div>
               <button
                 onClick={handleCancelAppointment}
@@ -298,12 +362,6 @@ export default function LiveQueueTrackerPage() {
                 <XCircle className="w-4 h-4 text-rose-500" />
                 <span>{cancelling ? 'Cancelling...' : 'Cancel Appointment'}</span>
               </button>
-            </div>
-          )}
-
-          {selectedAppt.status === 'cancelled' && (
-            <div className="p-4 bg-rose-50 dark:bg-rose-950/40 rounded-3xl border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-200 text-xs text-center font-bold">
-              ✕ This appointment was cancelled. Your token has been released.
             </div>
           )}
         </div>

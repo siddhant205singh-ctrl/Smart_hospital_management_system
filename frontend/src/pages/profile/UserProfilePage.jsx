@@ -22,7 +22,17 @@ import {
   Stethoscope,
   Award,
   CheckCircle2,
-  FileText
+  FileText,
+  Upload,
+  Eye,
+  Trash2,
+  Camera,
+  Filter,
+  Search,
+  ExternalLink,
+  ZoomIn,
+  ZoomOut,
+  ShieldCheck
 } from 'lucide-react';
 
 export default function UserProfilePage() {
@@ -80,6 +90,32 @@ export default function UserProfilePage() {
   const [newAllergy, setNewAllergy] = useState('');
   const [newCondition, setNewCondition] = useState('');
   const [newMedicine, setNewMedicine] = useState({ name: '', dosage: '', frequency: '' });
+
+  // Medical Reports State
+  const [reports, setReports] = useState([]);
+  const [reportsLoading, setReportsLoading] = useState(false);
+  const [reportFilterType, setReportFilterType] = useState('all');
+  const [reportFilterEmergencyOnly, setReportFilterEmergencyOnly] = useState(false);
+  const [reportSearch, setReportSearch] = useState('');
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadSubmitting, setUploadSubmitting] = useState(false);
+  const [previewReport, setPreviewReport] = useState(null);
+  const [previewZoom, setPreviewZoom] = useState(1);
+
+  // Upload Form state
+  const [uploadData, setUploadData] = useState({
+    title: '',
+    reportType: 'blood_test',
+    issuingFacility: '',
+    doctorName: '',
+    reportDate: new Date().toISOString().split('T')[0],
+    notes: '',
+    isEmergencyImportant: false,
+    visibility: 'consent_only',
+    file: null,
+    fileName: '',
+    filePreview: ''
+  });
 
   const showToast = (message, type = 'success') => {
     setToast({ show: true, message, type });
@@ -194,6 +230,133 @@ export default function UserProfilePage() {
       showToast('Profile data exported successfully.');
     } catch (err) {
       showToast('Failed to export profile data', 'error');
+    }
+  };
+
+  const fetchReports = async () => {
+    setReportsLoading(true);
+    try {
+      const res = await api.get('/reports/my');
+      setReports(res.data.reports || []);
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to load medical reports', 'error');
+    } finally {
+      setReportsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'reports' && user?.role === 'patient') {
+      fetchReports();
+    }
+  }, [activeTab, user]);
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      showToast('File size must be under 10MB', 'error');
+      return;
+    }
+    const isImage = file.type.startsWith('image/');
+    const preview = isImage ? URL.createObjectURL(file) : '';
+    setUploadData(prev => ({
+      ...prev,
+      file,
+      fileName: file.name,
+      filePreview: preview,
+      title: prev.title || file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ')
+    }));
+  };
+
+  const handleReportUploadSubmit = async (e) => {
+    e.preventDefault();
+    if (!uploadData.file) {
+      showToast('Please select a report file (PDF or image)', 'error');
+      return;
+    }
+    if (!uploadData.title.trim() || !uploadData.issuingFacility.trim()) {
+      showToast('Title and Issuing Facility are required', 'error');
+      return;
+    }
+
+    setUploadSubmitting(true);
+    try {
+      const formData = new FormData();
+      formData.append('reportFile', uploadData.file);
+      formData.append('title', uploadData.title.trim());
+      formData.append('reportType', uploadData.reportType);
+      formData.append('issuingFacility', uploadData.issuingFacility.trim());
+      formData.append('doctorName', uploadData.doctorName.trim());
+      formData.append('reportDate', uploadData.reportDate);
+      formData.append('notes', uploadData.notes.trim());
+      formData.append('isEmergencyImportant', uploadData.isEmergencyImportant);
+      formData.append('visibility', uploadData.isEmergencyImportant ? 'emergency_share' : uploadData.visibility);
+
+      await api.post('/reports', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      showToast('Report uploaded & synced to Health Timeline successfully!');
+      setShowUploadModal(false);
+      setUploadData({
+        title: '',
+        reportType: 'blood_test',
+        issuingFacility: '',
+        doctorName: '',
+        reportDate: new Date().toISOString().split('T')[0],
+        notes: '',
+        isEmergencyImportant: false,
+        visibility: 'consent_only',
+        file: null,
+        fileName: '',
+        filePreview: ''
+      });
+      fetchReports();
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Failed to upload report', 'error');
+    } finally {
+      setUploadSubmitting(false);
+    }
+  };
+
+  const handleDeleteReport = async (reportId) => {
+    if (!window.confirm('Are you sure you want to delete this medical report? It will also be removed from your Health Timeline.')) return;
+    try {
+      await api.delete(`/reports/${reportId}`);
+      showToast('Report deleted.');
+      fetchReports();
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Failed to delete report', 'error');
+    }
+  };
+
+  const handleToggleEmergencyShare = async (report) => {
+    try {
+      const newEmergencyState = !report.isEmergencyImportant;
+      const newVis = newEmergencyState ? 'emergency_share' : 'consent_only';
+      await api.put(`/reports/${report._id}/visibility`, {
+        isEmergencyImportant: newEmergencyState,
+        visibility: newVis
+      });
+      showToast(`Report updated: ${newEmergencyState ? 'Marked for emergency sharing' : 'Consent-only'}`);
+      fetchReports();
+    } catch (err) {
+      showToast('Failed to update report settings', 'error');
+    }
+  };
+
+  const handleChangeVisibility = async (report, newVis) => {
+    try {
+      await api.put(`/reports/${report._id}/visibility`, {
+        visibility: newVis,
+        isEmergencyImportant: newVis === 'emergency_share'
+      });
+      showToast(`Report visibility set to ${newVis.replace('_', ' ')}`);
+      fetchReports();
+    } catch (err) {
+      showToast('Failed to update visibility', 'error');
     }
   };
 
@@ -398,17 +561,31 @@ export default function UserProfilePage() {
         </button>
 
         {isPatient && (
-          <button
-            onClick={() => setActiveTab('health')}
-            className={`px-4 py-2 rounded-2xl transition flex items-center space-x-1.5 ${
-              activeTab === 'health'
-                ? 'bg-teal-600 text-white shadow-sm'
-                : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-            }`}
-          >
-            <Heart className="w-3.5 h-3.5" />
-            <span>Health & Donor</span>
-          </button>
+          <>
+            <button
+              onClick={() => setActiveTab('health')}
+              className={`px-4 py-2 rounded-2xl transition flex items-center space-x-1.5 ${
+                activeTab === 'health'
+                  ? 'bg-teal-600 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              <Heart className="w-3.5 h-3.5" />
+              <span>Health & Donor</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('reports')}
+              className={`px-4 py-2 rounded-2xl transition flex items-center space-x-1.5 ${
+                activeTab === 'reports'
+                  ? 'bg-teal-600 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>Medical Reports</span>
+            </button>
+          </>
         )}
 
         {isDoctor && (
@@ -1236,6 +1413,591 @@ export default function UserProfilePage() {
               <Download className="w-4 h-4" />
               <span>Export Medical Data</span>
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Tab: Medical Reports */}
+      {isPatient && activeTab === 'reports' && (
+        <div className="space-y-6">
+          {/* Header & Upload Banner */}
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center space-x-2">
+                <span className="p-2 rounded-2xl bg-teal-50 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400">
+                  <FileText className="w-5 h-5" />
+                </span>
+                <h3 className="font-bold text-base text-slate-900 dark:text-white">Emergency-Ready Medical Reports</h3>
+              </div>
+              <p className="text-xs text-slate-500 mt-1 max-w-xl">
+                Upload diagnostic reports, ECGs, scans, and discharge summaries to your profile. Tag critical files so emergency doctors can access them instantly during trauma or resuscitation.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowUploadModal(true)}
+              className="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-2xl shadow-md transition flex items-center space-x-2 flex-shrink-0"
+            >
+              <Upload className="w-4 h-4" />
+              <span>Upload Report</span>
+            </button>
+          </div>
+
+          {/* Search & Filters */}
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 sm:p-5 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                <input
+                  type="text"
+                  placeholder="Search by title, lab, doctor, or condition..."
+                  value={reportSearch}
+                  onChange={(e) => setReportSearch(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
+                />
+              </div>
+
+              <label className="flex items-center space-x-2 text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer bg-slate-50 dark:bg-slate-800 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 flex-shrink-0">
+                <input
+                  type="checkbox"
+                  checked={reportFilterEmergencyOnly}
+                  onChange={(e) => setReportFilterEmergencyOnly(e.target.checked)}
+                  className="rounded text-rose-600 focus:ring-rose-500"
+                />
+                <span className="flex items-center space-x-1">
+                  <ShieldCheck className="w-3.5 h-3.5 text-rose-500" />
+                  <span>Emergency-Tagged Only</span>
+                </span>
+              </label>
+            </div>
+
+            {/* Category Chips */}
+            <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 text-[11px] font-semibold">
+              {[
+                { id: 'all', label: 'All Types' },
+                { id: 'blood_test', label: 'Blood Tests' },
+                { id: 'ecg', label: 'ECG / Cardiac' },
+                { id: 'discharge_summary', label: 'Discharge Summaries' },
+                { id: 'x_ray', label: 'X-Rays' },
+                { id: 'mri_ct', label: 'MRI / CT Scans' },
+                { id: 'prescription', label: 'Prescriptions' },
+                { id: 'vaccination', label: 'Vaccines' },
+                { id: 'other', label: 'Other' }
+              ].map(chip => (
+                <button
+                  key={chip.id}
+                  type="button"
+                  onClick={() => setReportFilterType(chip.id)}
+                  className={`px-3 py-1.5 rounded-xl whitespace-nowrap transition ${
+                    reportFilterType === chip.id
+                      ? 'bg-teal-600 text-white'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  {chip.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Reports Grid */}
+          {reportsLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="h-44 bg-slate-100 dark:bg-slate-800 rounded-3xl animate-pulse"></div>
+              <div className="h-44 bg-slate-100 dark:bg-slate-800 rounded-3xl animate-pulse"></div>
+            </div>
+          ) : reports.length === 0 ? (
+            <div className="bg-white dark:bg-slate-900 rounded-3xl p-10 border border-slate-200 dark:border-slate-800 shadow-sm text-center space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-teal-50 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400 mx-auto flex items-center justify-center">
+                <FileText className="w-6 h-6" />
+              </div>
+              <h4 className="font-bold text-sm text-slate-900 dark:text-white">No Medical Reports Uploaded Yet</h4>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                Add your recent blood work, ECG graphs, or discharge summaries so consulting and emergency physicians have your complete health context.
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowUploadModal(true)}
+                className="px-4 py-2 bg-teal-600 text-white text-xs font-bold rounded-xl hover:bg-teal-700 transition"
+              >
+                Upload First Report
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {reports
+                .filter(r => {
+                  if (reportFilterType !== 'all' && r.reportType !== reportFilterType) return false;
+                  if (reportFilterEmergencyOnly && !r.isEmergencyImportant) return false;
+                  if (reportSearch) {
+                    const q = reportSearch.toLowerCase();
+                    return (
+                      r.title?.toLowerCase().includes(q) ||
+                      r.issuingFacility?.toLowerCase().includes(q) ||
+                      r.doctorName?.toLowerCase().includes(q) ||
+                      r.notes?.toLowerCase().includes(q)
+                    );
+                  }
+                  return true;
+                })
+                .map(report => (
+                  <div
+                    key={report._id}
+                    className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition flex flex-col justify-between space-y-3"
+                  >
+                    <div>
+                      {/* Top Badges */}
+                      <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+                        <span className="px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[10px] font-bold uppercase tracking-wider">
+                          {report.reportType.replace('_', ' ')}
+                        </span>
+
+                        <div className="flex items-center space-x-1.5">
+                          {report.isEmergencyImportant && (
+                            <span className="px-2.5 py-1 rounded-full bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 text-[10px] font-bold flex items-center space-x-1 animate-pulse">
+                              <span>🚨</span>
+                              <span>Emergency Priority</span>
+                            </span>
+                          )}
+
+                          <span
+                            className={`px-2 py-0.5 rounded-lg text-[10px] font-semibold border ${
+                              report.visibility === 'emergency_share'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300'
+                                : report.visibility === 'consent_only'
+                                ? 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-300'
+                                : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400'
+                            }`}
+                          >
+                            {report.visibility === 'emergency_share'
+                              ? 'Emergency Shared'
+                              : report.visibility === 'consent_only'
+                              ? 'Consent Only'
+                              : 'Private'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Title & Facility */}
+                      <h4 className="font-bold text-sm text-slate-900 dark:text-white line-clamp-1">{report.title}</h4>
+                      <p className="text-xs text-slate-500 mt-0.5 flex items-center space-x-2">
+                        <span>{report.issuingFacility}</span>
+                        {report.doctorName && <span>• Dr. {report.doctorName}</span>}
+                        <span>• {new Date(report.reportDate).toLocaleDateString()}</span>
+                      </p>
+
+                      {report.notes && (
+                        <p className="text-xs text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-xl mt-2.5 italic">
+                          "{report.notes}"
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Actions Toolbar */}
+                    <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPreviewReport(report);
+                          setPreviewZoom(1);
+                        }}
+                        className="px-3 py-1.5 bg-teal-50 hover:bg-teal-100 dark:bg-teal-950/40 dark:hover:bg-teal-900/60 text-teal-700 dark:text-teal-300 font-bold rounded-xl transition flex items-center space-x-1"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>Preview</span>
+                      </button>
+
+                      <div className="flex items-center space-x-2">
+                        {/* Quick Toggle Emergency Flag */}
+                        <button
+                          type="button"
+                          onClick={() => handleToggleEmergencyShare(report)}
+                          title="Toggle Emergency Break-Glass Sharing"
+                          className={`p-1.5 rounded-xl border transition ${
+                            report.isEmergencyImportant
+                              ? 'bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-100 dark:bg-rose-950/50 dark:border-rose-800'
+                              : 'bg-slate-50 border-slate-200 text-slate-500 hover:text-slate-700 dark:bg-slate-800 dark:border-slate-700'
+                          }`}
+                        >
+                          <ShieldCheck className="w-4 h-4" />
+                        </button>
+
+                        {/* Visibility Selector */}
+                        <select
+                          value={report.visibility}
+                          onChange={(e) => handleChangeVisibility(report, e.target.value)}
+                          className="px-2 py-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-[11px] font-semibold"
+                        >
+                          <option value="emergency_share">Emergency Share</option>
+                          <option value="consent_only">Consent Only</option>
+                          <option value="private">Private</option>
+                        </select>
+
+                        {/* Delete Report */}
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteReport(report._id)}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition"
+                          title="Delete Report"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          )}
+
+          {/* Compliance & Regulatory Notice */}
+          <div className="p-4 rounded-2xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 text-[11px] text-slate-500 flex items-start space-x-3">
+            <Shield className="w-4 h-4 text-teal-600 dark:text-teal-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <strong className="block text-slate-700 dark:text-slate-300 font-bold mb-0.5">
+                Clinical Data Protection & Audit Policy
+              </strong>
+              Medical records stored in SmartCare and summarized by clinical AI are handled strictly for clinical workflow support. Reports marked as private remain concealed even under emergency break-glass protocols. Every emergency view triggers a signed entry in your Access Log.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Upload Report Modal */}
+      {showUploadModal && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm p-4 flex items-center justify-center overflow-y-auto">
+          <div className="relative bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-7 max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4 text-slate-900 dark:text-slate-100">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center space-x-2">
+                <span className="p-2 bg-teal-50 dark:bg-teal-950/60 text-teal-600 rounded-xl">
+                  <Upload className="w-4 h-4" />
+                </span>
+                <h3 className="font-bold text-base">Upload Medical Report</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowUploadModal(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleReportUploadSubmit} className="space-y-4 text-xs">
+              {/* File Dropzone */}
+              <div className="border-2 border-dashed border-teal-500/40 hover:border-teal-500 dark:border-teal-500/30 rounded-2xl p-5 text-center bg-teal-50/30 dark:bg-teal-950/20 transition">
+                <input
+                  type="file"
+                  id="report-file-input"
+                  accept="application/pdf,image/jpeg,image/png,image/webp"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                {uploadData.fileName ? (
+                  <div className="space-y-2">
+                    <CheckCircle2 className="w-8 h-8 text-teal-600 mx-auto" />
+                    <p className="font-bold text-slate-800 dark:text-slate-200">{uploadData.fileName}</p>
+                    <label
+                      htmlFor="report-file-input"
+                      className="inline-block px-3 py-1 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-[11px] font-semibold cursor-pointer"
+                    >
+                      Choose Different File
+                    </label>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Upload className="w-8 h-8 text-teal-600 mx-auto" />
+                    <p className="font-bold text-slate-800 dark:text-slate-200">
+                      Drag & drop PDF, JPG, or PNG here
+                    </p>
+                    <p className="text-[11px] text-slate-400">Max size 10MB per file</p>
+                    <div className="flex items-center justify-center space-x-2 pt-1">
+                      <label
+                        htmlFor="report-file-input"
+                        className="px-3 py-1.5 bg-teal-600 text-white rounded-xl font-bold cursor-pointer hover:bg-teal-700 transition"
+                      >
+                        Browse Files
+                      </label>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Title & Type */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="font-semibold block mb-1">Report Title *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. 12-Lead ECG Report"
+                    value={uploadData.title}
+                    onChange={(e) => setUploadData({ ...uploadData, title: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-semibold block mb-1">Report Type *</label>
+                  <select
+                    value={uploadData.reportType}
+                    onChange={(e) => {
+                      const t = e.target.value;
+                      const isEmergency = ['ecg', 'discharge_summary', 'blood_test'].includes(t);
+                      setUploadData({
+                        ...uploadData,
+                        reportType: t,
+                        isEmergencyImportant: isEmergency || uploadData.isEmergencyImportant,
+                        visibility: isEmergency ? 'emergency_share' : uploadData.visibility
+                      });
+                    }}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-medium"
+                  >
+                    <option value="blood_test">Blood Test / CBC</option>
+                    <option value="ecg">ECG / Cardiology</option>
+                    <option value="discharge_summary">Discharge Summary</option>
+                    <option value="x_ray">X-Ray Scan</option>
+                    <option value="mri_ct">MRI / CT Scan</option>
+                    <option value="prescription">Prescription</option>
+                    <option value="vaccination">Vaccination Record</option>
+                    <option value="other">Other Diagnostic Document</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Lab / Facility & Doctor */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="font-semibold block mb-1">Issuing Hospital / Lab *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Apollo Diagnostics"
+                    value={uploadData.issuingFacility}
+                    onChange={(e) => setUploadData({ ...uploadData, issuingFacility: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-semibold block mb-1">Doctor Name (Optional)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Dr. Rajesh Sharma"
+                    value={uploadData.doctorName}
+                    onChange={(e) => setUploadData({ ...uploadData, doctorName: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
+                  />
+                </div>
+              </div>
+
+              {/* Date */}
+              <div>
+                <label className="font-semibold block mb-1">Report Date</label>
+                <input
+                  type="date"
+                  value={uploadData.reportDate}
+                  onChange={(e) => setUploadData({ ...uploadData, reportDate: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
+                />
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="font-semibold block mb-1">Key Notes / Parameters (Optional)</label>
+                <textarea
+                  rows={2}
+                  placeholder="e.g. HbA1c 7.1, normal sinus rhythm, severe allergy noted"
+                  value={uploadData.notes}
+                  onChange={(e) => setUploadData({ ...uploadData, notes: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
+                />
+              </div>
+
+              {/* Emergency Priority Toggle */}
+              <div className="p-3.5 rounded-2xl bg-rose-50/60 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/60 space-y-1">
+                <label className="flex items-center space-x-2 cursor-pointer font-bold text-rose-900 dark:text-rose-200">
+                  <input
+                    type="checkbox"
+                    checked={uploadData.isEmergencyImportant}
+                    onChange={(e) =>
+                      setUploadData({
+                        ...uploadData,
+                        isEmergencyImportant: e.target.checked,
+                        visibility: e.target.checked ? 'emergency_share' : uploadData.visibility
+                      })
+                    }
+                    className="rounded text-rose-600 focus:ring-rose-500 w-4 h-4"
+                  />
+                  <span>Tag as "Important for Emergencies"</span>
+                </label>
+                <p className="text-[11px] text-rose-700 dark:text-rose-300 pl-6">
+                  Recommended for cardiac reports, chronic condition summaries, and allergy tests so ER doctors can inspect them immediately.
+                </p>
+              </div>
+
+              {/* Visibility Controls */}
+              <div className="space-y-1.5">
+                <label className="font-semibold block">Visibility & Access Control</label>
+                <div className="space-y-2">
+                  <label className="flex items-start space-x-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="report-vis"
+                      value="emergency_share"
+                      checked={uploadData.visibility === 'emergency_share'}
+                      onChange={(e) => setUploadData({ ...uploadData, visibility: e.target.value })}
+                      className="mt-0.5 text-teal-600"
+                    />
+                    <div>
+                      <strong className="block text-slate-800 dark:text-slate-200">Share in emergencies (Recommended)</strong>
+                      <span className="text-[11px] text-slate-500">Accessible by verified doctors in emergency break-glass triage.</span>
+                    </div>
+                  </label>
+
+                  <label className="flex items-start space-x-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="report-vis"
+                      value="consent_only"
+                      checked={uploadData.visibility === 'consent_only'}
+                      onChange={(e) => setUploadData({ ...uploadData, visibility: e.target.value })}
+                      className="mt-0.5 text-teal-600"
+                    />
+                    <div>
+                      <strong className="block text-slate-800 dark:text-slate-200">Share with consent only</strong>
+                      <span className="text-[11px] text-slate-500">Requires explicit consent token approval for clinical visits.</span>
+                    </div>
+                  </label>
+
+                  <label className="flex items-start space-x-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="report-vis"
+                      value="private"
+                      checked={uploadData.visibility === 'private'}
+                      onChange={(e) =>
+                        setUploadData({
+                          ...uploadData,
+                          visibility: e.target.value,
+                          isEmergencyImportant: false
+                        })
+                      }
+                      className="mt-0.5 text-teal-600"
+                    />
+                    <div>
+                      <strong className="block text-slate-800 dark:text-slate-200">Private</strong>
+                      <span className="text-[11px] text-slate-500">Concealed from doctors even during emergency break-glass access.</span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              {/* Submit Buttons */}
+              <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setShowUploadModal(false)}
+                  className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl hover:bg-slate-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={uploadSubmitting}
+                  className="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl shadow-md transition"
+                >
+                  {uploadSubmitting ? 'Uploading...' : 'Save & Sync to Timeline'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Report Preview Modal */}
+      {previewReport && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm p-3 sm:p-6 flex items-center justify-center">
+          <div className="relative bg-white dark:bg-slate-900 rounded-3xl max-w-4xl w-full max-h-[95vh] flex flex-col shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+            {/* Header */}
+            <div className="p-4 px-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center space-x-2">
+                  <span>{previewReport.title}</span>
+                  {previewReport.isEmergencyImportant && (
+                    <span className="px-2 py-0.5 rounded-full bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 text-[10px] font-bold">
+                      Emergency Tagged
+                    </span>
+                  )}
+                </h3>
+                <p className="text-xs text-slate-500">
+                  {previewReport.issuingFacility} • {new Date(previewReport.reportDate).toLocaleDateString()}
+                </p>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setPreviewZoom(z => Math.max(0.6, z - 0.2))}
+                  className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  title="Zoom Out"
+                >
+                  <ZoomOut className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewZoom(z => Math.min(2.5, z + 0.2))}
+                  className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  title="Zoom In"
+                >
+                  <ZoomIn className="w-4 h-4" />
+                </button>
+                <a
+                  href={previewReport.fileUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-teal-600"
+                  title="Open in new tab"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setPreviewReport(null)}
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Viewer Content */}
+            <div className="flex-1 overflow-auto p-4 flex items-center justify-center bg-slate-100 dark:bg-slate-950/60 min-h-[350px]">
+              {previewReport.fileMimeType?.includes('pdf') ? (
+                <iframe
+                  src={previewReport.fileUrl}
+                  title={previewReport.title}
+                  className="w-full h-[65vh] rounded-2xl border border-slate-200 dark:border-slate-800 shadow"
+                />
+              ) : (
+                <div className="overflow-auto max-h-[70vh] flex items-center justify-center">
+                  <img
+                    src={previewReport.fileUrl}
+                    alt={previewReport.title}
+                    style={{ transform: `scale(${previewZoom})`, transformOrigin: 'center center' }}
+                    className="max-w-full max-h-[65vh] object-contain rounded-xl shadow-lg transition-transform duration-200"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Footer notes */}
+            {previewReport.notes && (
+              <div className="p-3.5 px-6 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-xs">
+                <span className="font-bold text-slate-700 dark:text-slate-300">Report Notes: </span>
+                <span className="text-slate-500">{previewReport.notes}</span>
+              </div>
+            )}
           </div>
         </div>
       )}

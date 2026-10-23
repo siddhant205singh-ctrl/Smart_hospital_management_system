@@ -26,6 +26,7 @@ const BloodAlert = require('../models/BloodAlert');
 const BloodAlertResponse = require('../models/BloodAlertResponse');
 const EmergencyCase = require('../models/EmergencyCase');
 const BreakGlassAccessLog = require('../models/BreakGlassAccessLog');
+const MedicalReport = require('../models/MedicalReport');
 
 const seedData = async (shouldExit = true) => {
   try {
@@ -56,7 +57,8 @@ const seedData = async (shouldExit = true) => {
       BloodAlert.deleteMany({}),
       BloodAlertResponse.deleteMany({}),
       EmergencyCase.deleteMany({}),
-      BreakGlassAccessLog.deleteMany({})
+      BreakGlassAccessLog.deleteMany({}),
+      MedicalReport.deleteMany({})
     ]);
 
     console.log('[Seed] Seeding 3 Connected Hospitals...');
@@ -68,6 +70,10 @@ const seedData = async (shouldExit = true) => {
         address: { street: 'Sarita Vihar, Mathura Road', city: 'New Delhi', state: 'Delhi', zip: '110076', lat: 28.5355, lng: 77.2910 },
         phone: '+91-11-26925858',
         emergencyContact: '1066',
+        emergencyPhone: '+91-11-26925858',
+        hasEmergencyDept: true,
+        is24x7Emergency: true,
+        currentErWaitMinutes: 8,
         bloodBankOperational: true,
         image: 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&w=800&q=80'
       },
@@ -78,6 +84,10 @@ const seedData = async (shouldExit = true) => {
         address: { street: 'Sector 44, Opposite HUDA City Centre', city: 'Gurugram', state: 'Haryana', zip: '122002', lat: 28.4595, lng: 77.0725 },
         phone: '+91-124-4962200',
         emergencyContact: '105010',
+        emergencyPhone: '+91-124-4962200',
+        hasEmergencyDept: true,
+        is24x7Emergency: true,
+        currentErWaitMinutes: 14,
         bloodBankOperational: true,
         image: 'https://images.unsplash.com/photo-1586773860418-d37222d8fce3?auto=format&fit=crop&w=800&q=80'
       },
@@ -88,6 +98,10 @@ const seedData = async (shouldExit = true) => {
         address: { street: '1, 2, Press Enclave Marg, Saket', city: 'New Delhi', state: 'Delhi', zip: '110017', lat: 28.5284, lng: 77.2140 },
         phone: '+91-11-26515050',
         emergencyContact: '011-40554055',
+        emergencyPhone: '011-40554055',
+        hasEmergencyDept: true,
+        is24x7Emergency: true,
+        currentErWaitMinutes: 10,
         bloodBankOperational: true,
         image: 'https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=800&q=80'
       }
@@ -442,6 +456,70 @@ const seedData = async (shouldExit = true) => {
       status: 'active',
       validUntil: new Date(Date.now() + 90 * 86400000)
     });
+
+    console.log('[Seed] Seeding Patient Medical Reports (Emergency-Ready)...');
+    await MedicalReport.create([
+      {
+        patientId: patientUser._id,
+        title: '12-Lead Baseline Resting ECG',
+        reportType: 'ecg',
+        reportDate: new Date(Date.now() - 15 * 86400000),
+        issuingFacility: 'Apollo Heart Center',
+        doctorName: 'Dr. Anita Desai',
+        notes: 'Normal sinus rhythm, heart rate 72 bpm. PR interval 160ms, QTc 410ms. No ST-T wave elevation or acute ischemic changes.',
+        isEmergencyImportant: true,
+        visibility: 'emergency_share',
+        fileUrl: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=800&q=80',
+        fileName: 'ecg_resting_lead12.pdf',
+        fileMimeType: 'image/jpeg',
+        fileSizeBytes: 245000
+      },
+      {
+        patientId: patientUser._id,
+        title: 'Cardiac Troponin-I & CK-MB Biochemical Assay',
+        reportType: 'blood_test',
+        reportDate: new Date(Date.now() - 15 * 86400000),
+        issuingFacility: 'Dr. Lal PathLabs Specialty',
+        doctorName: 'Dr. K. S. Verma',
+        notes: 'High-sensitivity Troponin-I < 0.01 ng/mL (Reference < 0.04). CK-MB 14 U/L (Normal). Electrolytes within normal baseline.',
+        isEmergencyImportant: true,
+        visibility: 'emergency_share',
+        fileUrl: 'https://images.unsplash.com/photo-1579154204601-01588f351e67?auto=format&fit=crop&w=800&q=80',
+        fileName: 'troponin_ckmb_panel.pdf',
+        fileMimeType: 'image/jpeg',
+        fileSizeBytes: 184000
+      },
+      {
+        patientId: patientUser._id,
+        title: 'Prior Inpatient Discharge Summary - Viral Myocarditis Observation',
+        reportType: 'discharge_summary',
+        reportDate: new Date(Date.now() - 180 * 86400000),
+        issuingFacility: 'Max Healthcare Saket',
+        doctorName: 'Dr. R. K. Singhal',
+        notes: 'Discharged stable. Known severe anaphylactic allergy to Penicillin / Cephalosporins. Prescribed oral anti-hypertensives.',
+        isEmergencyImportant: true,
+        visibility: 'emergency_share',
+        fileUrl: 'https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?auto=format&fit=crop&w=800&q=80',
+        fileName: 'discharge_summary_max.pdf',
+        fileMimeType: 'image/jpeg',
+        fileSizeBytes: 312000
+      },
+      {
+        patientId: patientUser._id,
+        title: 'Confidential Routine Health Examination',
+        reportType: 'other',
+        reportDate: new Date(Date.now() - 45 * 86400000),
+        issuingFacility: 'South City Family Clinic',
+        doctorName: 'Dr. M. Roy',
+        notes: 'Routine executive physical. Audiometry and visual acuity normal.',
+        isEmergencyImportant: false,
+        visibility: 'private',
+        fileUrl: 'https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?auto=format&fit=crop&w=800&q=80',
+        fileName: 'confidential_checkup.pdf',
+        fileMimeType: 'image/jpeg',
+        fileSizeBytes: 156000
+      }
+    ]);
 
     console.log('[Seed] Seeding LifeShare Module (Voluntary Donor, Gold Card, Inventory, Priority Blood Request)...');
     // Seed Rahul Sharma as a proud Voluntary Blood Donor with 11 Verified Lifetime Donations (Gold Tier)

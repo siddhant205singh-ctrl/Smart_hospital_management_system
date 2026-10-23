@@ -55,7 +55,21 @@ const emergencyCaseSchema = new mongoose.Schema({
   }],
   admittedDepartmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Department' },
   aiClinicalSummary: { type: String, default: '' },
-  breakGlassUsed: { type: Boolean, default: false }
+  breakGlassUsed: { type: Boolean, default: false },
+  patientLocationSnapshot: {
+    lat: Number,
+    lng: Number,
+    city: String
+  },
+  estimatedTravelTimeMinutes: { type: Number, default: 0 },
+  preArrivalNotified: { type: Boolean, default: false },
+  preArrivalNotifiedAt: { type: Date },
+  sourceReportIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'MedicalReport' }],
+  bookingSource: {
+    type: String,
+    enum: ['emergency_finder', 'direct_walkin', 'intake_modal'],
+    default: 'intake_modal'
+  }
 }, {
   timestamps: true
 });

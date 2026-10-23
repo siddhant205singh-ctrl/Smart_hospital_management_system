@@ -63,13 +63,20 @@ export default function DoctorDashboard() {
     if (!socket || !doctorId) return;
 
     socket.on('queue:updated', (data) => {
-      if (data.doctorId === doctorId) {
+      if (!data?.doctorId || data.doctorId.toString() === doctorId.toString()) {
+        fetchLiveQueue(doctorId);
+      }
+    });
+
+    socket.on('queue:refresh', (data) => {
+      if (!data?.doctorId || data.doctorId.toString() === doctorId.toString()) {
         fetchLiveQueue(doctorId);
       }
     });
 
     return () => {
       socket.off('queue:updated');
+      socket.off('queue:refresh');
     };
   }, [socket, doctorId]);
 

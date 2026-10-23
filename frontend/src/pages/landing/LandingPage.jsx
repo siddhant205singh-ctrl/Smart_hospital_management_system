@@ -49,158 +49,91 @@ export default function LandingPage() {
     <div className="space-y-12 sm:space-y-20 pb-16">
       {/* 1. HERO SECTION */}
       <section className="relative overflow-hidden pt-6 sm:pt-12 pb-12 sm:pb-20 bg-gradient-to-b from-teal-500/10 via-cyan-500/5 to-transparent">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
-            {/* Left Content */}
-            <div className="lg:col-span-7 space-y-4 sm:space-y-6">
-              <div className="inline-flex items-center space-x-2 px-3 py-1.5 rounded-full bg-teal-100/80 dark:bg-teal-950/80 border border-teal-300 dark:border-teal-700 text-teal-800 dark:text-teal-200 text-xs font-bold">
-                <span className="w-2 h-2 rounded-full bg-teal-500 animate-ping"></span>
-                <span>{t('hero.badge')}</span>
-              </div>
-
-              <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-slate-900 dark:text-white tracking-tight leading-[1.15]">
-                {t('hero.title')}{' '}
-                <span className="bg-gradient-to-r from-teal-600 via-teal-500 to-cyan-600 bg-clip-text text-transparent">
-                  {t('hero.titleHighlight')}
-                </span>
-              </h1>
-
-              <p className="text-sm sm:text-lg text-slate-600 dark:text-slate-300 max-w-xl leading-relaxed">
-                {t('hero.subtitle')}
-              </p>
-
-              {/* Doctor Search Bar (Responsive flex) */}
-              <form onSubmit={handleSearchSubmit} className="max-w-xl flex flex-col sm:flex-row items-stretch sm:items-center bg-white dark:bg-slate-900 p-2 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 gap-2 sm:gap-0">
-                <div className="flex items-center flex-1 px-2">
-                  <Search className="w-5 h-5 text-teal-600 flex-shrink-0" />
-                  <input
-                    type="text"
-                    value={searchDoctor}
-                    onChange={(e) => setSearchDoctor(e.target.value)}
-                    placeholder="Search doctor, specialty (e.g. Cardiology)..."
-                    className="w-full px-3 py-2 text-xs sm:text-sm bg-transparent border-none text-slate-900 dark:text-slate-100 focus:outline-none"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-md transition text-center"
-                >
-                  Search
-                </button>
-              </form>
-
-              {/* CTAs */}
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 pt-2">
-                <button
-                  onClick={() => setShowEmergencyModal(true)}
-                  className="px-5 py-3 bg-rose-600 hover:bg-rose-700 text-white font-black text-xs rounded-xl shadow-lg shadow-rose-600/30 transition flex items-center justify-center space-x-1.5 animate-pulse"
-                >
-                  <ShieldAlert className="w-4 h-4" />
-                  <span>Emergency Triage</span>
-                </button>
-                <Link
-                  to="/doctors"
-                  className="px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-lg shadow-teal-600/25 transition flex items-center justify-center space-x-2"
-                >
-                  <span>{t('hero.ctaBook')}</span>
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
-                <Link
-                  to="/my-queue"
-                  className="px-6 py-3 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 font-bold text-xs rounded-xl transition flex items-center justify-center space-x-2"
-                >
-                  <Clock className="w-4 h-4 text-teal-600" />
-                  <span>{t('hero.ctaQueue')}</span>
-                </Link>
-                <Link
-                  to="/lifeshare"
-                  className="px-6 py-3 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900 font-bold text-xs rounded-xl transition flex items-center justify-center space-x-1.5"
-                >
-                  <Droplet className="w-4 h-4 fill-rose-500" />
-                  <span>{t('hero.ctaDonor')}</span>
-                </Link>
-              </div>
-
-              {/* Trust Indicators */}
-              <div className="pt-2 sm:pt-4 flex flex-wrap items-center gap-y-2 gap-x-4 sm:gap-x-6 text-[11px] sm:text-xs text-slate-500">
-                <span className="flex items-center space-x-1.5">
-                  <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500" />
-                  <span>72% Waiting Reduced</span>
-                </span>
-                <span className="flex items-center space-x-1.5">
-                  <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500" />
-                  <span>Consent Governed</span>
-                </span>
-                <span className="flex items-center space-x-1.5">
-                  <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500" />
-                  <span>100% Voluntary Blood</span>
-                </span>
-              </div>
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="space-y-6 sm:space-y-8 text-center flex flex-col items-center">
+            <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-teal-100/80 dark:bg-teal-950/80 border border-teal-300 dark:border-teal-700 text-teal-800 dark:text-teal-200 text-xs font-bold">
+              <span className="w-2 h-2 rounded-full bg-teal-500 animate-ping"></span>
+              <span>{t('hero.badge')}</span>
             </div>
 
-            {/* Right: Live Interactive Queue Card Preview */}
-            <div className="lg:col-span-5">
-              <div className="relative">
-                {/* Decorative glow */}
-                <div className="absolute -inset-1 bg-gradient-to-r from-teal-500 to-cyan-500 rounded-3xl blur-xl opacity-30 animate-pulse"></div>
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-slate-900 dark:text-white tracking-tight leading-[1.15] max-w-4xl">
+              {t('hero.title')}{' '}
+              <span className="bg-gradient-to-r from-teal-600 via-teal-500 to-cyan-600 bg-clip-text text-transparent">
+                {t('hero.titleHighlight')}
+              </span>
+            </h1>
 
-                <div className="relative bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-5">
-                  {/* Card Header */}
-                  <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-                    <div className="flex items-center space-x-2">
-                      <span className="w-3 h-3 rounded-full bg-emerald-500 radar-live"></span>
-                      <span className="font-bold text-xs text-slate-800 dark:text-slate-200">
-                        Live Hospital Queue Stream
-                      </span>
-                    </div>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 dark:bg-teal-950 dark:text-teal-300">
-                      Dr. Anita Desai (Cardiology)
-                    </span>
-                  </div>
+            <p className="text-sm sm:text-lg text-slate-600 dark:text-slate-300 max-w-2xl leading-relaxed">
+              {t('hero.subtitle')}
+            </p>
 
-                  {/* Token & Progress Ring */}
-                  <div className="flex items-center justify-between py-2">
-                    <div>
-                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Your Token</span>
-                      <span className="text-5xl font-black text-slate-900 dark:text-white">#03</span>
-                      <span className="text-xs font-mono font-semibold text-teal-600 block mt-0.5">CARD-003</span>
-                    </div>
-
-                    <div className="w-24 h-24 rounded-full border-4 border-teal-500 border-t-teal-200 flex flex-col items-center justify-center text-center p-2 bg-teal-50 dark:bg-teal-950/40">
-                      <span className="text-[9px] uppercase font-bold text-slate-500">Wait Est.</span>
-                      <span className="text-lg font-black text-teal-700 dark:text-teal-300">18 min</span>
-                      <span className="text-[8px] text-slate-400">1 ahead</span>
-                    </div>
-                  </div>
-
-                  {/* Live Doctor Status */}
-                  <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl text-xs space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500">Doctor Room:</span>
-                      <span className="font-bold text-slate-800 dark:text-slate-200">OPD-101 (2nd Floor)</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500">Currently In Consultation:</span>
-                      <span className="font-bold text-teal-600">Token #01 (8m elapsed)</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500">Rolling Consultation Average:</span>
-                      <span className="font-bold text-slate-700 dark:text-slate-300">14 min</span>
-                    </div>
-                  </div>
-
-                  {/* Smart Leave Now Notification Preview */}
-                  <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 flex items-start space-x-2.5 text-xs text-amber-900 dark:text-amber-200">
-                    <Bell className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <strong className="block font-bold">Smart "Leave Now" Trigger Active</strong>
-                      <span className="text-[11px] leading-tight text-amber-800 dark:text-amber-300 block mt-0.5">
-                        Leave in 10 mins (25m drive + 15m triage buffer). Avoid crowded waiting rooms!
-                      </span>
-                    </div>
-                  </div>
-                </div>
+            {/* Doctor Search Bar (Responsive flex) */}
+            <form onSubmit={handleSearchSubmit} className="w-full max-w-2xl flex flex-col sm:flex-row items-stretch sm:items-center bg-white dark:bg-slate-900 p-2 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 gap-2 sm:gap-0">
+              <div className="flex items-center flex-1 px-3">
+                <Search className="w-5 h-5 text-teal-600 flex-shrink-0" />
+                <input
+                  type="text"
+                  value={searchDoctor}
+                  onChange={(e) => setSearchDoctor(e.target.value)}
+                  placeholder="Search doctor, specialty (e.g. Cardiology)..."
+                  className="w-full px-3 py-2 text-xs sm:text-sm bg-transparent border-none text-slate-900 dark:text-slate-100 focus:outline-none"
+                />
               </div>
+              <button
+                type="submit"
+                className="px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-md transition text-center"
+              >
+                Search
+              </button>
+            </form>
+
+            {/* CTAs */}
+            <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowEmergencyModal(true)}
+                className="px-5 py-3 bg-rose-600 hover:bg-rose-700 text-white font-black text-xs rounded-xl shadow-lg shadow-rose-600/30 transition flex items-center justify-center space-x-1.5 animate-pulse"
+              >
+                <ShieldAlert className="w-4 h-4" />
+                <span>Emergency Triage</span>
+              </button>
+              <Link
+                to="/doctors"
+                className="px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-lg shadow-teal-600/25 transition flex items-center justify-center space-x-2"
+              >
+                <span>{t('hero.ctaBook')}</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+              <Link
+                to="/my-queue"
+                className="px-6 py-3 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 font-bold text-xs rounded-xl transition flex items-center justify-center space-x-2"
+              >
+                <Clock className="w-4 h-4 text-teal-600" />
+                <span>{t('hero.ctaQueue')}</span>
+              </Link>
+              <Link
+                to="/lifeshare"
+                className="px-6 py-3 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900 font-bold text-xs rounded-xl transition flex items-center justify-center space-x-1.5"
+              >
+                <Droplet className="w-4 h-4 fill-rose-500" />
+                <span>{t('hero.ctaDonor')}</span>
+              </Link>
+            </div>
+
+            {/* Trust Indicators */}
+            <div className="pt-4 flex flex-wrap items-center justify-center gap-y-2 gap-x-4 sm:gap-x-6 text-[11px] sm:text-xs text-slate-500">
+              <span className="flex items-center space-x-1.5">
+                <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500" />
+                <span>72% Waiting Reduced</span>
+              </span>
+              <span className="flex items-center space-x-1.5">
+                <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500" />
+                <span>Consent Governed</span>
+              </span>
+              <span className="flex items-center space-x-1.5">
+                <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500" />
+                <span>100% Voluntary Blood</span>
+              </span>
             </div>
           </div>
         </div>

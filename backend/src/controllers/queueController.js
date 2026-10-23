@@ -61,6 +61,24 @@ exports.getPatientQueueStatus = async (req, res, next) => {
 
     if (!appointment) return res.status(404).json({ error: 'Appointment not found' });
 
+    if (appointment.status === 'cancelled') {
+      return res.json({
+        success: true,
+        appointment,
+        queueStatus: {
+          currentToken: 0,
+          myToken: appointment.tokenNumber,
+          tokenCode: appointment.tokenCode,
+          patientsAhead: 0,
+          status: 'cancelled',
+          estimatedWaitMinutes: 0,
+          estimatedTurnTime: null,
+          doctorStatus: appointment.doctorId?.liveStatus || 'available',
+          roomNumber: appointment.doctorId?.roomNumber || 'OPD'
+        }
+      });
+    }
+
     const doctorId = appointment.doctorId._id;
     const date = appointment.date;
 
@@ -157,6 +175,7 @@ exports.startConsultation = async (req, res, next) => {
     const { appointmentId } = req.body;
     const appointment = await Appointment.findById(appointmentId).populate('doctorId');
     if (!appointment) return res.status(404).json({ error: 'Appointment not found' });
+    if (appointment.status === 'cancelled') return res.status(400).json({ error: 'Cannot start a cancelled appointment' });
 
     appointment.status = 'in_consultation';
     appointment.consultationStartTime = new Date();
@@ -182,6 +201,7 @@ exports.endConsultation = async (req, res, next) => {
     const { appointmentId, doctorNotes, prescription, vitals } = req.body;
     const appointment = await Appointment.findById(appointmentId).populate('patientId');
     if (!appointment) return res.status(404).json({ error: 'Appointment not found' });
+    if (appointment.status === 'cancelled') return res.status(400).json({ error: 'Cannot complete a cancelled appointment' });
 
     const endTime = new Date();
     const startTime = appointment.consultationStartTime || new Date(endTime.getTime() - 15 * 60000);
@@ -226,6 +246,7 @@ exports.markNoShow = async (req, res, next) => {
     const { appointmentId } = req.body;
     const appointment = await Appointment.findById(appointmentId);
     if (!appointment) return res.status(404).json({ error: 'Appointment not found' });
+    if (appointment.status === 'cancelled') return res.status(400).json({ error: 'Cannot mark a cancelled appointment as no-show' });
 
     appointment.status = 'no_show';
     await appointment.save();

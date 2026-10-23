@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
@@ -20,6 +21,7 @@ const notificationRoutes = require('./routes/notificationRoutes');
 const profileRoutes = require('./routes/profileRoutes');
 const bloodAlertRoutes = require('./routes/bloodAlertRoutes');
 const emergencyRoutes = require('./routes/emergencyRoutes');
+const reportRoutes = require('./routes/reportRoutes');
 
 const app = express();
 
@@ -73,6 +75,10 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/blood-alerts', bloodAlertRoutes);
 app.use('/api/emergency-cases', emergencyRoutes);
+app.use('/api/reports', reportRoutes);
+
+// Static uploads serving
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // LifeShare Voluntary Blood Donor Program routes
 app.use('/api', lifeShareRoutes);

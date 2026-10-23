@@ -72,7 +72,8 @@ export default function Navbar() {
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-slate-200/80 bg-white/95 backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/95 shadow-sm">
+    <>
+      <header className="sticky top-0 z-40 w-full border-b border-slate-200/80 bg-white/95 backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/95 shadow-sm">
       {/* Main Navbar */}
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
         {/* Brand Logo */}
@@ -150,6 +151,7 @@ export default function Navbar() {
         <div className="flex items-center space-x-1 sm:space-x-2">
           {/* Emergency Intake Button */}
           <button
+            type="button"
             onClick={() => setShowEmergencyModal(true)}
             className="px-2.5 sm:px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-xs shadow-md shadow-rose-600/30 flex items-center space-x-1 transition flex-shrink-0 animate-pulse"
             title="Emergency Triage & 112 Call"
@@ -518,11 +520,13 @@ export default function Navbar() {
         </div>
       )}
 
-      {/* Emergency Intake Modal */}
-      <EmergencyIntakeModal
-        isOpen={showEmergencyModal}
-        onClose={() => setShowEmergencyModal(false)}
-      />
     </header>
-  );
+
+    {/* Emergency Intake Modal */}
+    <EmergencyIntakeModal
+      isOpen={showEmergencyModal}
+      onClose={() => setShowEmergencyModal(false)}
+    />
+  </>
+);
 }

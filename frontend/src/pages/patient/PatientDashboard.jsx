@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSocket } from '../../contexts/SocketContext';
 import api from '../../services/api';
 import {
   Clock,
@@ -21,6 +22,7 @@ import EmergencyIntakeModal from '../../components/emergency/EmergencyIntakeModa
 
 export default function PatientDashboard() {
   const { user } = useAuth();
+  const { socket } = useSocket();
   const [appointments, setAppointments] = useState([]);
   const [donorData, setDonorData] = useState(null);
   const [matchingAlerts, setMatchingAlerts] = useState([]);
@@ -49,6 +51,24 @@ export default function PatientDashboard() {
       .finally(() => setLoading(false));
   }, [user]);
 
+  // Listen for real-time appointment cancellation or queue refresh events
+  useEffect(() => {
+    if (!socket) return;
+
+    socket.on('appointment:cancelled', (data) => {
+      setAppointments(prev => prev.map(a => a._id === data.appointmentId ? { ...a, status: 'cancelled' } : a));
+    });
+
+    socket.on('queue:refresh', () => {
+      fetchAppointments();
+    });
+
+    return () => {
+      socket.off('appointment:cancelled');
+      socket.off('queue:refresh');
+    };
+  }, [socket]);
+
   const handleRespondAlert = async (alertId, status) => {
     setRespondingAlertId(alertId);
     try {
@@ -70,12 +90,16 @@ export default function PatientDashboard() {
     if (!confirmed) return;
 
     setCancellingId(appointmentId);
+    // 1. Instantly reflect cancellation in local state for instantaneous 0ms feedback
+    setAppointments(prev => prev.map(a => a._id === appointmentId ? { ...a, status: 'cancelled' } : a));
+
     try {
       await api.put(`/appointments/${appointmentId}/cancel`);
-      alert('Appointment cancelled successfully. Waiting queue has been updated.');
+      // 2. Refresh from server to ensure full sync
       fetchAppointments();
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to cancel appointment');
+      fetchAppointments();
     } finally {
       setCancellingId(null);
     }
@@ -202,7 +226,7 @@ export default function PatientDashboard() {
               <ArrowRight className="w-4 h-4" />
             </Link>
 
-            {['scheduled', 'checked_in'].includes(activeAppt.status) && (
+            {['scheduled', 'checked_in', 'called'].includes(activeAppt.status) && (
               <button
                 onClick={() => handleCancelAppointment(activeAppt._id)}
                 disabled={cancellingId === activeAppt._id}
@@ -299,7 +323,7 @@ export default function PatientDashboard() {
         ) : (
           <div className="space-y-3">
             {appointments.map((appt) => {
-              const isCancellable = ['scheduled', 'checked_in'].includes(appt.status);
+              const isCancellable = ['scheduled', 'checked_in', 'called'].includes(appt.status);
               return (
                 <div
                   key={appt._id}

@@ -152,9 +152,22 @@ exports.cancelAppointment = async (req, res, next) => {
     await appointment.save();
 
     const io = req.app.get('io');
+    if (io) {
+      io.to(`appointment_${appointment._id}`).emit('appointment:cancelled', {
+        appointmentId: appointment._id,
+        status: 'cancelled'
+      });
+      io.to(`doctor_${appointment.doctorId}`).emit('queue:updated', { doctorId: appointment.doctorId });
+      io.emit('queue:refresh', { doctorId: appointment.doctorId });
+    }
+
     await recalculateDoctorQueue(appointment.doctorId, io);
 
-    res.json({ success: true, message: 'Appointment cancelled successfully' });
+    res.json({
+      success: true,
+      message: 'Appointment cancelled successfully',
+      appointment
+    });
   } catch (error) {
     next(error);
   }

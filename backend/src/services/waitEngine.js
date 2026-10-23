@@ -80,18 +80,20 @@ const recalculateDoctorQueue = async (doctorId, io = null) => {
       await appt.save();
 
       const patient = appt.patientId;
-      const leaveMessage = `SmartCare Alert: Your token #${appt.tokenNumber} with Dr. ${doctor.userId?.name || 'Doctor'} is estimated at ${estimatedTurn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}. With ${travelTime}m travel and ${checkInBuffer}m buffer, please LEAVE NOW to arrive smoothly.`;
+      if (patient) {
+        const leaveMessage = `SmartCare Alert: Your token #${appt.tokenNumber} with Dr. ${doctor.userId?.name || 'Doctor'} is estimated at ${estimatedTurn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}. With ${travelTime}m travel and ${checkInBuffer}m buffer, please LEAVE NOW to arrive smoothly.`;
 
-      await sendNotification({
-        userId: patient._id,
-        userPhone: patient.phone,
-        userEmail: patient.email,
-        type: 'leave_now',
-        title: 'Time to Leave for Hospital',
-        message: leaveMessage,
-        channel: 'all',
-        meta: { appointmentId: appt._id, tokenNumber: appt.tokenNumber, estimatedTurnTime: estimatedTurn }
-      });
+        await sendNotification({
+          userId: patient._id,
+          userPhone: patient.phone,
+          userEmail: patient.email,
+          type: 'leave_now',
+          title: 'Time to Leave for Hospital',
+          message: leaveMessage,
+          channel: 'all',
+          meta: { appointmentId: appt._id, tokenNumber: appt.tokenNumber, estimatedTurnTime: estimatedTurn }
+        });
+      }
 
       if (io) {
         io.to(`appointment_${appt._id}`).emit('notification:leave_now', {

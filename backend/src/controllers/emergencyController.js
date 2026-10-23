@@ -31,35 +31,44 @@ exports.createEmergencyCase = async (req, res, next) => {
       preferredHospitalId,
       submittedByName,
       relationship = 'self',
-      isBystander = false
+      isBystander = false,
+      userLat,
+      userLng,
+      travelTimeMinutes,
+      assignedDoctorId,
+      bookingSource = 'intake_modal'
     } = req.body;
 
-    const targetPatientId = patientId || req.user._id;
-    const patientUser = await User.findById(targetPatientId);
-    if (!patientUser) return res.status(404).json({ error: 'Patient not found' });
+    let targetPatientId = patientId || (req.user ? req.user._id : null);
+    if (!targetPatientId) {
+      const fallbackPatient = await User.findOne({ role: 'patient' });
+      targetPatientId = fallbackPatient ? fallbackPatient._id : null;
+    }
+
+    const patientUser = targetPatientId ? await User.findById(targetPatientId) : null;
 
     // Rules-based clinical triage
     const triagePriority = determineTriagePriority(chiefComplaint, severityScore);
 
     // Snapshot prefilled health data
     const prefilledHealthSnapshot = {
-      bloodGroup: patientUser.patientHealth?.bloodGroup || 'Not specified',
-      allergies: patientUser.patientHealth?.allergies || [],
-      existingConditions: patientUser.patientHealth?.existingConditions || [],
-      currentMedicines: patientUser.patientHealth?.currentMedicines?.map(m => `${m.name} (${m.dosage})`) || []
+      bloodGroup: patientUser?.patientHealth?.bloodGroup || 'Not specified',
+      allergies: patientUser?.patientHealth?.allergies || [],
+      existingConditions: patientUser?.patientHealth?.existingConditions || [],
+      currentMedicines: patientUser?.patientHealth?.currentMedicines?.map(m => `${m.name} (${m.dosage})`) || []
     };
 
     const caseNumber = `EM-${Date.now().toString().slice(-6)}`;
-    const hospitalId = preferredHospitalId || patientUser.hospitalId || '675d00000000000000000001';
+    const hospitalId = preferredHospitalId || patientUser?.hospitalId || '675d00000000000000000001';
 
     const emergencyCase = await EmergencyCase.create({
       caseNumber,
       patientId: targetPatientId,
       submittedBy: {
-        userId: req.user._id,
-        name: submittedByName || req.user.name,
+        userId: req.user?._id || targetPatientId,
+        name: submittedByName || req.user?.name || 'Emergency Intake / Good Samaritan',
         relationship,
-        isBystander: Boolean(isBystander)
+        isBystander: Boolean(isBystander || !req.user)
       },
       hospitalId,
       chiefComplaint,
@@ -68,6 +77,12 @@ exports.createEmergencyCase = async (req, res, next) => {
       symptomOnset,
       triagePriority,
       prefilledHealthSnapshot,
+      assignedDoctorId: assignedDoctorId || undefined,
+      patientLocationSnapshot: (userLat && userLng) ? { lat: Number(userLat), lng: Number(userLng), city: '' } : undefined,
+      estimatedTravelTimeMinutes: travelTimeMinutes ? Number(travelTimeMinutes) : 0,
+      preArrivalNotified: true,
+      preArrivalNotifiedAt: new Date(),
+      bookingSource,
       status: 'waiting'
     });
 
@@ -79,15 +94,23 @@ exports.createEmergencyCase = async (req, res, next) => {
     // Broadcast high-priority real-time Socket.IO alert to Hospital Emergency Room
     const io = req.app.get('io');
     if (io) {
-      io.emit('emergency:new_case', {
+      const alertPayload = {
         caseId: emergencyCase._id,
         caseNumber: emergencyCase.caseNumber,
         patientName: emergencyCase.patientId?.name,
         chiefComplaint: emergencyCase.chiefComplaint,
         triagePriority: emergencyCase.triagePriority,
         severityScore: emergencyCase.severityScore,
-        hospitalId: emergencyCase.hospitalId?._id
-      });
+        hospitalId: emergencyCase.hospitalId?._id,
+        etaMinutes: emergencyCase.estimatedTravelTimeMinutes,
+        bookingSource: emergencyCase.bookingSource,
+        timestamp: new Date().toISOString()
+      };
+
+      io.emit('emergency:new_case', alertPayload);
+      if (emergencyCase.hospitalId?._id) {
+        io.to(`hospital_${emergencyCase.hospitalId._id}`).emit('emergency:pre_arrival_alert', alertPayload);
+      }
     }
 
     // In-app alert for patient / emergency contact
