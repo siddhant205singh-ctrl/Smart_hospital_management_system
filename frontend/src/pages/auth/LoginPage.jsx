@@ -57,7 +57,7 @@ export default function LoginPage() {
         </div>
 
         {/* Quick Demo Switcher Box */}
-        <div className="p-4 bg-teal-50 dark:bg-teal-950/40 rounded-2xl border border-teal-200 dark:border-teal-800 text-xs">
+        {/* <div className="p-4 bg-teal-50 dark:bg-teal-950/40 rounded-2xl border border-teal-200 dark:border-teal-800 text-xs">
           <span className="font-bold text-teal-800 dark:text-teal-200 block mb-2 flex items-center space-x-1">
             <Sparkles className="w-3.5 h-3.5" />
             <span>One-Click Demo Logins for Evaluation:</span>
@@ -92,7 +92,7 @@ export default function LoginPage() {
               🩸 Blood Bank Officer
             </button>
           </div>
-        </div>
+        </div> */}
 
         {error && (
           <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl">
