@@ -6,6 +6,9 @@ const FamilyLink = require('../models/FamilyLink');
 const HealthRecord = require('../models/HealthRecord');
 const User = require('../models/User');
 const AuditLog = require('../models/AuditLog');
+const BloodAlert = require('../models/BloodAlert');
+const Notification = require('../models/Notification');
+const Hospital = require('../models/Hospital');
 const { logAudit } = require('../middleware/auditMiddleware');
 
 // Configurable Fast-Track Settings (In-Memory with Admin Override)
@@ -436,15 +439,31 @@ exports.getHospitalInventory = async (req, res, next) => {
   }
 };
 
+// Transfusion Red Blood Cell Compatibility mapping for emergency donor mobilization
+const COMPATIBLE_DONORS_MAP = {
+  'A+': ['A+', 'A-', 'O+', 'O-'],
+  'A-': ['A-', 'O-'],
+  'B+': ['B+', 'B-', 'O+', 'O-'],
+  'B-': ['B-', 'O-'],
+  'AB+': ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'],
+  'AB-': ['A-', 'B-', 'AB-', 'O-'],
+  'O+': ['O+', 'O-'],
+  'O-': ['O-']
+};
+
 // ==========================================
 // 4. BLOOD REQUESTS & DONOR FAMILY FAST-TRACK
 // ==========================================
 
 // @route   POST /api/blood-requests
+// Raised by: Blood Bank Officer, Hospital Admin / Operations, or Doctor
+// Requirement: If stock is less than requested, automatically starts voluntary donation drive
 exports.createBloodRequest = async (req, res, next) => {
   try {
     const {
       patientId,
+      patientName,
+      hospitalId,
       bloodGroup,
       component,
       unitsRequested,
@@ -452,77 +471,188 @@ exports.createBloodRequest = async (req, res, next) => {
       clinicalDiagnosis
     } = req.body;
 
+    if (!bloodGroup) {
+      return res.status(400).json({ error: 'Blood group is required' });
+    }
+
     const requestCount = await BloodRequest.countDocuments();
     const requestId = `REQ-BLD-${(requestCount + 1).toString().padStart(4, '0')}`;
+    const unitsNum = Number(unitsRequested) || 1;
+    const targetComponent = component || 'Packed Red Blood Cells (PRBC)';
 
-    // Auto-check donor registry for Donor Family Fast-Track eligibility:
+    // Determine target hospital
+    let targetHospitalId = hospitalId || req.user.hospitalId;
+    if (!targetHospitalId) {
+      const defaultHosp = await Hospital.findOne();
+      targetHospitalId = defaultHosp?._id;
+    }
+    const hospitalDoc = await Hospital.findById(targetHospitalId);
+
+    // 1. INVENTORY CHECK: Check current stock of this blood group & component
+    const availableUnits = await BloodUnit.countDocuments({
+      hospitalId: targetHospitalId,
+      bloodGroup,
+      component: targetComponent,
+      status: 'available'
+    });
+
+    const isStockInsufficient = availableUnits < unitsNum;
+    const deficit = isStockInsufficient ? (unitsNum - availableUnits) : 0;
+
+    // 2. Auto-check donor registry for Donor Family Fast-Track eligibility (if patientId provided):
     let isFastTrack = false;
     let fastTrackDetails = null;
 
     const activeThresholdMs = fastTrackSettings.activeDonationMaxMonths * 30.5 * 24 * 60 * 60 * 1000;
     const now = new Date();
 
-    // 1. Direct Donor Check
-    const directDonor = await Donor.findOne({
-      userId: patientId,
-      totalDonations: { $gte: fastTrackSettings.minDonationsForFastTrack }
-    }).populate('userId', 'name');
+    if (patientId) {
+      // Direct Donor Check
+      const directDonor = await Donor.findOne({
+        userId: patientId,
+        totalDonations: { $gte: fastTrackSettings.minDonationsForFastTrack }
+      }).populate('userId', 'name');
 
-    if (directDonor && directDonor.lastDonationDate && (now - new Date(directDonor.lastDonationDate)) <= activeThresholdMs) {
-      isFastTrack = true;
-      fastTrackDetails = {
-        donorId: directDonor._id,
-        donorName: directDonor.userId?.name || 'Self Donor',
-        totalDonations: directDonor.totalDonations,
-        lastDonationDate: directDonor.lastDonationDate,
-        relationship: 'self'
-      };
-    } else {
-      // 2. Pre-Verified Family Link Check
-      const patientUser = await User.findById(patientId);
-      const verifiedLink = await FamilyLink.findOne({
-        familyMemberName: new RegExp(patientUser?.name, 'i'),
-        verificationStatus: 'verified'
-      }).populate({
-        path: 'donorId',
-        populate: { path: 'userId', select: 'name' }
-      });
-
-      if (
-        verifiedLink &&
-        verifiedLink.donorId &&
-        verifiedLink.donorId.totalDonations >= fastTrackSettings.minDonationsForFastTrack &&
-        verifiedLink.donorId.lastDonationDate &&
-        (now - new Date(verifiedLink.donorId.lastDonationDate)) <= activeThresholdMs
-      ) {
+      if (directDonor && directDonor.lastDonationDate && (now - new Date(directDonor.lastDonationDate)) <= activeThresholdMs) {
         isFastTrack = true;
         fastTrackDetails = {
-          donorId: verifiedLink.donorId._id,
-          donorName: verifiedLink.donorId.userId?.name || 'Family Donor',
-          totalDonations: verifiedLink.donorId.totalDonations,
-          lastDonationDate: verifiedLink.donorId.lastDonationDate,
-          relationship: verifiedLink.relationship,
-          familyLinkId: verifiedLink._id
+          donorId: directDonor._id,
+          donorName: directDonor.userId?.name || 'Self Donor',
+          totalDonations: directDonor.totalDonations,
+          lastDonationDate: directDonor.lastDonationDate,
+          relationship: 'self'
         };
+      } else {
+        // Pre-Verified Family Link Check
+        const patientUser = await User.findById(patientId);
+        const verifiedLink = await FamilyLink.findOne({
+          familyMemberName: new RegExp(patientUser?.name || '', 'i'),
+          verificationStatus: 'verified'
+        }).populate({
+          path: 'donorId',
+          populate: { path: 'userId', select: 'name' }
+        });
+
+        if (
+          verifiedLink &&
+          verifiedLink.donorId &&
+          verifiedLink.donorId.totalDonations >= fastTrackSettings.minDonationsForFastTrack &&
+          verifiedLink.donorId.lastDonationDate &&
+          (now - new Date(verifiedLink.donorId.lastDonationDate)) <= activeThresholdMs
+        ) {
+          isFastTrack = true;
+          fastTrackDetails = {
+            donorId: verifiedLink.donorId._id,
+            donorName: verifiedLink.donorId.userId?.name || 'Family Donor',
+            totalDonations: verifiedLink.donorId.totalDonations,
+            lastDonationDate: verifiedLink.donorId.lastDonationDate,
+            relationship: verifiedLink.relationship,
+            familyLinkId: verifiedLink._id
+          };
+        }
       }
     }
 
-    const unitsNum = Number(unitsRequested) || 1;
     const standardFeePerUnit = 1200;
     const originalFee = standardFeePerUnit * unitsNum;
     const feeWaived = isFastTrack && fastTrackSettings.waiveProcessingFee;
     const finalFee = feeWaived ? 0 : originalFee;
 
+    // 3. START VOLUNTARY DONATION IF STOCK IS LESS:
+    let voluntaryAlert = null;
+    let matchedDonorsCount = 0;
+
+    if (isStockInsufficient) {
+      const targetGroups = clinicalUrgency === 'critical_emergency'
+        ? (COMPATIBLE_DONORS_MAP[bloodGroup] || [bloodGroup])
+        : [bloodGroup];
+
+      // Find compatible willing voluntary donors
+      const matchedUsers = await User.find({
+        'patientHealth.bloodGroup': { $in: targetGroups },
+        'donorSettings.willingToDonate': { $ne: false },
+        'notificationPreferences.types.bloodAlerts': { $ne: false }
+      }).select('_id name preferredLanguage');
+
+      matchedDonorsCount = matchedUsers.length;
+
+      // Create active BloodAlert
+      voluntaryAlert = await BloodAlert.create({
+        hospitalId: targetHospitalId,
+        raisedBy: req.user._id,
+        bloodGroup,
+        component: targetComponent,
+        unitsNeeded: deficit > 0 ? deficit : unitsNum,
+        urgency: clinicalUrgency === 'critical_emergency' ? 'Critical' : 'High',
+        matchingMode: clinicalUrgency === 'critical_emergency' ? 'include_compatible' : 'exact_match',
+        contactDesk: `${hospitalDoc?.name || 'SmartCare'} Blood Bank Emergency Desk`,
+        contactPhone: hospitalDoc?.emergencyPhone || hospitalDoc?.phone || req.user.phone || '+91-11-26925858',
+        radiusKm: 25,
+        expiresAt: new Date(Date.now() + 24 * 3600 * 1000),
+        status: 'active',
+        matchedUsersCount,
+        autoTriggerSuggested: true
+      });
+
+      // Dispatch in-app notifications to matched voluntary donors
+      const hospitalName = hospitalDoc?.name || 'SmartCare Hospital';
+      await Promise.all(
+        matchedUsers.map(u => {
+          const isHi = u.preferredLanguage === 'hi';
+          const notifTitle = isHi
+            ? `🚨 तत्काल रक्तदान की आवश्यकता: ${bloodGroup}`
+            : `🚨 URGENT Voluntary Blood Needed: ${bloodGroup} (Deficit: ${deficit} units)`;
+          const notifMsg = isHi
+            ? `${hospitalName} में रक्त की कमी है (${availableUnits} उपलब्ध, ${unitsNum} आवश्यक)। कृपया स्वेच्छा से रक्तदान कर मरीज की जान बचाएं।`
+            : `${hospitalName} has an urgent shortage of ${bloodGroup} (${availableUnits} units in stock, ${unitsNum} requested). Step forward for voluntary unpaid donation!`;
+
+          return Notification.create({
+            userId: u._id,
+            type: 'blood_shortage_alert',
+            title: notifTitle,
+            message: notifMsg,
+            channel: 'in_app',
+            meta: {
+              alertId: voluntaryAlert._id,
+              bloodGroup,
+              unitsNeeded: deficit,
+              hospitalName
+            }
+          });
+        })
+      );
+
+      // Real-time Socket.IO Broadcast
+      const io = req.app.get('io');
+      if (io) {
+        io.emit('blood:shortage_voluntary_alert', {
+          alertId: voluntaryAlert._id,
+          hospitalName,
+          bloodGroup,
+          component: targetComponent,
+          unitsNeeded: deficit,
+          urgency: voluntaryAlert.urgency,
+          availableUnits,
+          requestedUnits: unitsNum
+        });
+        io.emit('blood_alert:new', voluntaryAlert);
+      }
+    }
+
+    // 4. Create the BloodRequest record
     const bloodRequest = await BloodRequest.create({
       requestId,
-      hospitalId: req.user.hospitalId || req.body.hospitalId,
-      patientId,
-      requestingDoctorId: req.user._id,
+      hospitalId: targetHospitalId,
+      patientId: patientId || undefined,
+      patientName: patientName || (req.user.name ? `Case under ${req.user.name}` : 'Emergency Patient / Trauma Center'),
+      requestedBy: req.user._id,
+      requestedByRole: req.user.role || 'blood_bank_officer',
+      requestingDoctorId: req.user.role === 'doctor' ? req.user._id : undefined,
       bloodGroup,
-      component: component || 'Packed Red Blood Cells (PRBC)',
+      component: targetComponent,
       unitsRequested: unitsNum,
       clinicalUrgency: clinicalUrgency || 'urgent_surgery',
-      clinicalDiagnosis,
+      clinicalDiagnosis: clinicalDiagnosis || 'Urgent transfusion requirement',
       fastTrackApplied: isFastTrack,
       fastTrackDetails: isFastTrack ? fastTrackDetails : undefined,
       fastTrackBenefits: isFastTrack ? {
@@ -535,7 +665,14 @@ exports.createBloodRequest = async (req, res, next) => {
       processingFeeWaived: feeWaived,
       processingFeeAmount: finalFee,
       replacementDonorDemanded: false,
-      status: 'pending'
+      status: 'pending',
+      voluntaryDonationStarted: isStockInsufficient,
+      bloodAlertId: voluntaryAlert ? voluntaryAlert._id : undefined,
+      inventoryAtRequest: availableUnits,
+      deficitUnits: deficit,
+      voluntaryDonationNotes: isStockInsufficient
+        ? `Stock deficit: ${availableUnits} in inventory vs ${unitsNum} requested. Automatic voluntary donation drive initiated with ${matchedDonorsCount} donors alerted.`
+        : `Sufficient stock available (${availableUnits} units). Ready for immediate cross-match and allocation.`
     });
 
     if (isFastTrack) {
@@ -555,12 +692,11 @@ exports.createBloodRequest = async (req, res, next) => {
         }
       });
 
-      // Socket.IO real-time alert to Blood Bank
       const io = req.app.get('io');
       if (io) {
         io.emit('blood:fast_track_request', {
           requestId: bloodRequest.requestId,
-          patientName: req.body.patientName || 'Emergency Patient',
+          patientName: bloodRequest.patientName,
           donorName: fastTrackDetails.donorName,
           bloodGroup: bloodRequest.bloodGroup,
           unitsRequested: bloodRequest.unitsRequested,
@@ -569,7 +705,22 @@ exports.createBloodRequest = async (req, res, next) => {
       }
     }
 
-    res.status(201).json({ success: true, bloodRequest });
+    res.status(201).json({
+      success: true,
+      bloodRequest,
+      inventoryCheck: {
+        availableUnits,
+        requestedUnits: unitsNum,
+        deficit,
+        isStockInsufficient
+      },
+      voluntaryDonationStarted: isStockInsufficient,
+      bloodAlert: voluntaryAlert,
+      matchedDonorsCount,
+      message: isStockInsufficient
+        ? `Stock deficit detected (${availableUnits} available, ${unitsNum} requested). Emergency voluntary donation appeal has been started and broadcast to ${matchedDonorsCount} donors!`
+        : `Blood request logged successfully. ${availableUnits} units available in blood bank for allocation.`
+    });
   } catch (error) {
     next(error);
   }
@@ -585,6 +736,8 @@ exports.getBloodRequests = async (req, res, next) => {
     const requests = await BloodRequest.find()
       .populate('patientId', 'name phone email avatar')
       .populate('hospitalId', 'name city')
+      .populate('requestedBy', 'name email role')
+      .populate('bloodAlertId', 'status unitsNeeded unitsFulfilled urgency')
       .sort({
         clinicalUrgency: 1,
         createdAt: 1

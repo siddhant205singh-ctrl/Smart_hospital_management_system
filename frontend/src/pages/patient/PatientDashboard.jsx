@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../contexts/SocketContext';
+import { useTranslation } from 'react-i18next';
 import api from '../../services/api';
 import {
   Clock,
@@ -16,13 +17,19 @@ import {
   PhoneCall,
   XCircle,
   AlertCircle,
-  ShieldAlert
+  ShieldAlert,
+  Bot,
+  Heart,
+  Stethoscope,
+  Pill,
+  HeartPulse
 } from 'lucide-react';
 import EmergencyIntakeModal from '../../components/emergency/EmergencyIntakeModal';
 
 export default function PatientDashboard() {
   const { user } = useAuth();
   const { socket } = useSocket();
+  const { t } = useTranslation();
   const [appointments, setAppointments] = useState([]);
   const [donorData, setDonorData] = useState(null);
   const [matchingAlerts, setMatchingAlerts] = useState([]);
@@ -112,10 +119,10 @@ export default function PatientDashboard() {
       {/* Welcome Banner */}
       <div className="bg-gradient-to-r from-teal-700 via-teal-600 to-cyan-700 rounded-3xl p-6 sm:p-8 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div>
-          <span className="text-xs font-bold uppercase tracking-wider text-teal-200">Patient Command Portal</span>
-          <h1 className="text-2xl sm:text-3xl font-black mt-1">Welcome back, {user?.name}!</h1>
+          <span className="text-xs font-bold uppercase tracking-wider text-teal-200">{t('patient.commandPortal')}</span>
+          <h1 className="text-2xl sm:text-3xl font-black mt-1">{t('patient.welcome')} {user?.name}!</h1>
           <p className="text-xs text-teal-100 mt-1 max-w-lg">
-            SmartCare has estimated your wait times and travel window so you don't spend unnecessary hours in hospital lounges.
+            {t('patient.subtext')}
           </p>
         </div>
 
@@ -125,18 +132,18 @@ export default function PatientDashboard() {
             className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-lg transition flex items-center justify-center space-x-1.5 animate-pulse"
           >
             <ShieldAlert className="w-4 h-4" />
-            <span>Emergency Intake</span>
+            <span>{t('patient.emergencyIntake')}</span>
           </button>
 
           {donorData?.donor ? (
             <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-sm border border-white/20 text-center">
-              <span className="text-[10px] uppercase font-bold text-amber-300 block">LifeShare Verified Donor</span>
+              <span className="text-[10px] uppercase font-bold text-amber-300 block">{t('lifeshare.verifiedDonor')}</span>
               <span className="text-sm font-black text-white flex items-center justify-center gap-1">
                 <Heart className="w-3.5 h-3.5 fill-rose-400 text-rose-400 inline" />
-                {donorData.donor.totalDonations || 0} Donations ({donorData.donor.totalDonations * 3} Lives)
+                {donorData.donor.totalDonations || 0} {t('lifeshare.totalDonations')} ({donorData.donor.totalDonations * 3} {t('lifeshare.livesImpacted')})
               </span>
               <span className="text-[10px] text-emerald-200 block font-semibold mt-0.5">
-                ⚡ Donor Family Fast-Track Active
+                ⚡ {t('lifeshare.fastTrackActive')}
               </span>
             </div>
           ) : (
@@ -145,9 +152,88 @@ export default function PatientDashboard() {
               className="px-4 py-2.5 bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs rounded-xl shadow-md transition flex items-center justify-center space-x-1.5"
             >
               <Droplet className="w-4 h-4 fill-white" />
-              <span>Join LifeShare Network</span>
+              <span>{t('patient.joinLifeShare')}</span>
             </Link>
           )}
+        </div>
+      </div>
+
+      {/* Patient Health Dossier & Personalized AI Chatbot Card */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Profile Snapshot */}
+        <div className="md:col-span-2 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-teal-700 dark:text-teal-400 flex items-center space-x-1.5">
+              <Activity className="w-4 h-4" />
+              <span>Your Clinical Profile Dossier</span>
+            </span>
+            <Link to="/my-profile" className="text-xs font-bold text-teal-600 hover:underline">
+              Edit Records →
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+            <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-100 dark:border-slate-800">
+              <span className="text-[10px] text-slate-400 font-semibold block">Blood Group</span>
+              <span className="text-sm font-black text-rose-600 font-mono">
+                {user?.patientHealth?.bloodGroup || 'B+'}
+              </span>
+              <span className="text-[9px] text-emerald-600 font-bold block">✓ Verified</span>
+            </div>
+
+            <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-100 dark:border-slate-800">
+              <span className="text-[10px] text-slate-400 font-semibold block">Known Allergies</span>
+              <span className="text-xs font-bold text-rose-700 dark:text-rose-300 block truncate">
+                {user?.patientHealth?.allergies?.join(', ') || 'Penicillin'}
+              </span>
+              <span className="text-[9px] text-rose-500 font-semibold block">Active Safety Alert</span>
+            </div>
+
+            <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-100 dark:border-slate-800">
+              <span className="text-[10px] text-slate-400 font-semibold block">Chronic Conditions</span>
+              <span className="text-xs font-bold text-amber-700 dark:text-amber-300 block truncate">
+                {user?.patientHealth?.existingConditions?.join(', ') || 'Mild Asthma'}
+              </span>
+              <span className="text-[9px] text-amber-600 font-semibold block">Tracked in Triage</span>
+            </div>
+
+            <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-100 dark:border-slate-800">
+              <span className="text-[10px] text-slate-400 font-semibold block">Active Medicines</span>
+              <span className="text-xs font-bold text-teal-700 dark:text-teal-300 block truncate">
+                {user?.patientHealth?.currentMedicines?.[0]?.name || 'Levocetirizine 5mg'}
+              </span>
+              <span className="text-[9px] text-slate-400 block">Adherence Monitored</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Personalized AI Chatbot Quick Card */}
+        <div className="bg-gradient-to-br from-teal-600 via-teal-700 to-cyan-800 rounded-3xl p-5 text-white shadow-md flex flex-col justify-between">
+          <div>
+            <div className="flex items-center space-x-1.5 mb-2">
+              <div className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center">
+                <Bot className="w-4 h-4 text-white" />
+              </div>
+              <span className="text-[10px] uppercase font-bold tracking-wider text-amber-200 bg-black/20 px-2 py-0.5 rounded-full">
+                Customized for You
+              </span>
+            </div>
+            <h3 className="font-bold text-sm leading-snug">
+              SmartCare Clinical AI Assistant
+            </h3>
+            <p className="text-[11px] text-teal-100 mt-1">
+              Evaluates your medical history, allergies & current symptoms to guide specialist care.
+            </p>
+          </div>
+
+          <Link
+            to="/ai-assistant"
+            className="mt-4 w-full py-2.5 bg-white text-teal-800 hover:bg-teal-50 rounded-xl font-bold text-xs flex items-center justify-center space-x-1.5 shadow-md transition"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+            <span>Launch Clinical Assistant</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
         </div>
       </div>
 

@@ -24,6 +24,8 @@ const BloodAlertResponse = require('../models/BloodAlertResponse');
 const EmergencyCase = require('../models/EmergencyCase');
 const BreakGlassAccessLog = require('../models/BreakGlassAccessLog');
 const MedicalReport = require('../models/MedicalReport');
+const ApprovalRequest = require('../models/ApprovalRequest');
+const VerificationDocument = require('../models/VerificationDocument');
 
 const seedData = async (shouldExit = true) => {
   try {
@@ -52,7 +54,9 @@ const seedData = async (shouldExit = true) => {
       BloodAlertResponse.deleteMany({}),
       EmergencyCase.deleteMany({}),
       BreakGlassAccessLog.deleteMany({}),
-      MedicalReport.deleteMany({})
+      MedicalReport.deleteMany({}),
+      ApprovalRequest.deleteMany({}),
+      VerificationDocument.deleteMany({})
     ]);
 
     console.log('[Seed] Seeding 3 Connected Hospitals...');
@@ -130,13 +134,27 @@ const seedData = async (shouldExit = true) => {
     console.log('[Seed] Seeding Users for all Roles...');
     const commonPassword = 'Password123!';
 
-    // 1. Admin
+    // 0. Super Admin (Platform Oversight)
+    const superAdminUser = await User.create({
+      name: 'Dr. Arvind Sharma (Super Admin)',
+      email: 'superadmin@smartcare.hospital',
+      password: commonPassword,
+      phone: '+91-9811000000',
+      role: 'super_admin',
+      status: 'active',
+      emailVerifiedAt: new Date(),
+      avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=200&q=80'
+    });
+
+    // 1. Hospital Admin
     const adminUser = await User.create({
-      name: 'Dr. Vikram Malhotra (Admin)',
+      name: 'Dr. Vikram Malhotra (Hospital Admin)',
       email: 'admin@smartcare.hospital',
       password: commonPassword,
       phone: '+91-9811001122',
-      role: 'admin',
+      role: 'hospital_admin',
+      status: 'active',
+      emailVerifiedAt: new Date(),
       hospitalId: hospitals[0]._id,
       avatar: 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&w=200&q=80'
     });
@@ -148,6 +166,8 @@ const seedData = async (shouldExit = true) => {
       password: commonPassword,
       phone: '+91-9877665544',
       role: 'receptionist',
+      status: 'active',
+      emailVerifiedAt: new Date(),
       hospitalId: hospitals[0]._id,
       avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&q=80'
     });
@@ -159,6 +179,8 @@ const seedData = async (shouldExit = true) => {
       password: commonPassword,
       phone: '+91-9822334455',
       role: 'blood_bank_officer',
+      status: 'active',
+      emailVerifiedAt: new Date(),
       hospitalId: hospitals[0]._id,
       avatar: 'https://images.unsplash.com/photo-1582750433449-648ed127bb54?auto=format&fit=crop&w=200&q=80'
     });
@@ -170,6 +192,8 @@ const seedData = async (shouldExit = true) => {
       password: commonPassword,
       phone: '+91-9810123456',
       role: 'patient',
+      status: 'active',
+      emailVerifiedAt: new Date(),
       avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80',
       gender: 'male',
       dateOfBirth: new Date('1992-05-14'),
@@ -220,6 +244,8 @@ const seedData = async (shouldExit = true) => {
       password: commonPassword,
       phone: '+91-9810987654',
       role: 'patient',
+      status: 'active',
+      emailVerifiedAt: new Date(),
       avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=80',
       address: { street: 'Flat 304, Green Glen Layout', city: 'Gurugram', state: 'Haryana', zip: '122001', lat: 28.45, lng: 77.02 }
     });
@@ -259,6 +285,8 @@ const seedData = async (shouldExit = true) => {
         password: commonPassword,
         phone: `+91-98000000${(i + 10).toString().slice(-2)}`,
         role: 'doctor',
+        status: 'active',
+        emailVerifiedAt: new Date(),
         hospitalId: hospitals[p.hospitalIdx]._id,
         avatar: p.avatar
       });
@@ -280,6 +308,7 @@ const seedData = async (shouldExit = true) => {
         ],
         subSpecialties: [p.specialty + ' Care', 'Interventional Therapeutics'],
         medicalCouncilRegNumber: `MCI-${10000 + i * 237}`,
+        approvalStatus: i < 14 ? 'approved' : 'pending',
         isVerified: i < 14,
         verifiedByAdminId: i < 14 ? adminUser._id : undefined,
         verifiedAt: i < 14 ? new Date(Date.now() - 30 * 86400000) : undefined,
@@ -300,6 +329,127 @@ const seedData = async (shouldExit = true) => {
       });
       seededDoctors.push(doctorDoc);
     }
+
+    console.log('[Seed] Seeding Lifecycle Demo Accounts & Approval Requests...');
+    // Demo Account: Doctor Pending Approval
+    const pendingDocUser = await User.create({
+      name: 'Dr. Siddharth Sen (Pending)',
+      email: 'doctor.pending@smartcare.hospital',
+      password: commonPassword,
+      phone: '+91-9811223344',
+      role: 'doctor',
+      status: 'pending_approval',
+      emailVerifiedAt: new Date(),
+      hospitalId: hospitals[0]._id,
+      avatar: 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&w=200&q=80'
+    });
+
+    const pendingDocRecord = await Doctor.create({
+      userId: pendingDocUser._id,
+      hospitalId: hospitals[0]._id,
+      departmentId: departments[0]._id,
+      specialty: 'Cardiology',
+      qualifications: [{ degree: 'MBBS', institution: 'AIIMS Delhi', year: 2016 }],
+      medicalCouncilRegNumber: 'MCI-PENDING-999',
+      isVerified: false,
+      approvalStatus: 'pending',
+      bio: 'Cardiology specialist applicant pending document review.',
+      languages: ['English', 'Hindi'],
+      experienceYears: 6,
+      consultationFee: 900
+    });
+
+    const pendingDocApproval = await ApprovalRequest.create({
+      applicantId: pendingDocUser._id,
+      applicantRole: 'doctor',
+      hospitalId: hospitals[0]._id,
+      professionalDetails: {
+        medicalCouncilRegNumber: 'MCI-PENDING-999',
+        councilState: 'Delhi',
+        specialization: 'Cardiology',
+        experienceYears: 6,
+        qualifications: [{ degree: 'MBBS', institution: 'AIIMS Delhi', year: 2016 }]
+      },
+      status: 'pending'
+    });
+    pendingDocUser.currentApprovalRequestId = pendingDocApproval._id;
+    await pendingDocUser.save();
+
+    // Demo Account: Doctor Rejected
+    const rejectedDocUser = await User.create({
+      name: 'Dr. Rohan Mehra (Rejected)',
+      email: 'doctor.rejected@smartcare.hospital',
+      password: commonPassword,
+      phone: '+91-9811223355',
+      role: 'doctor',
+      status: 'rejected',
+      emailVerifiedAt: new Date(),
+      rejectionReason: 'Medical council registration certificate scan was illegible and signature missing.',
+      hospitalId: hospitals[0]._id,
+      avatar: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=200&q=80'
+    });
+
+    await ApprovalRequest.create({
+      applicantId: rejectedDocUser._id,
+      applicantRole: 'doctor',
+      hospitalId: hospitals[0]._id,
+      professionalDetails: {
+        medicalCouncilRegNumber: 'MCI-REJECTED-888',
+        councilState: 'Haryana',
+        specialization: 'Orthopedics',
+        experienceYears: 4
+      },
+      status: 'rejected',
+      rejectionReason: 'Medical council registration certificate scan was illegible and signature missing.',
+      resubmissionCount: 1,
+      maxResubmissions: 3
+    });
+
+    // Demo Account: Hospital Admin Pending Super Admin Verification
+    const pendingHospital = await Hospital.create({
+      name: 'City Care Trauma Hospital',
+      licenseNumber: 'HOSP-LIC-2026-DEL',
+      bedsCount: 120,
+      emergencyAvailable: true,
+      approvalStatus: 'pending',
+      address: { street: 'Outer Ring Road', city: 'New Delhi', state: 'Delhi', zip: '110048' }
+    });
+
+    const pendingHospitalAdmin = await User.create({
+      name: 'Rajiv Saxena (Pending Admin)',
+      email: 'hospital.pending@smartcare.hospital',
+      password: commonPassword,
+      phone: '+91-9811334455',
+      role: 'hospital_admin',
+      status: 'pending_approval',
+      emailVerifiedAt: new Date(),
+      hospitalId: pendingHospital._id
+    });
+
+    await ApprovalRequest.create({
+      applicantId: pendingHospitalAdmin._id,
+      applicantRole: 'hospital_admin',
+      hospitalId: pendingHospital._id,
+      hospitalDetails: {
+        name: pendingHospital.name,
+        city: 'New Delhi',
+        state: 'Delhi',
+        licenseNumber: 'HOSP-LIC-2026-DEL',
+        bedsCount: 120,
+        hasEmergencyDept: true
+      },
+      status: 'pending'
+    });
+
+    // Demo Account: Patient Pending Email Verification
+    await User.create({
+      name: 'Kunal Verma (Unverified)',
+      email: 'patient.unverified@smartcare.hospital',
+      password: commonPassword,
+      phone: '+91-9811445566',
+      role: 'patient',
+      status: 'pending_email_verification'
+    });
 
     console.log('[Seed] Seeding Consultation Metrics for Dynamic Rolling Averages...');
     const primaryDoctor = seededDoctors[0]; // Dr. Anita Desai (Cardiology)
@@ -755,11 +905,17 @@ const seedData = async (shouldExit = true) => {
     console.log('✅ SmartCare + LifeShare Database Seeded Successfully!');
     console.log('======================================================');
     console.log('DEMO LOGINS (Password for all: Password123!):');
-    console.log('1. Patient (Gold Donor): patient@smartcare.hospital');
-    console.log('2. Doctor (Cardiology):  doctor1@smartcare.hospital');
+    console.log('0. Super Admin:          superadmin@smartcare.hospital');
+    console.log('1. Patient (Active):     patient@smartcare.hospital');
+    console.log('2. Doctor (Verified):    doctor1@smartcare.hospital');
     console.log('3. Hospital Admin:       admin@smartcare.hospital');
     console.log('4. Receptionist:         reception@smartcare.hospital');
     console.log('5. Blood Bank Officer:   bloodofficer@smartcare.hospital');
+    console.log('LIFECYCLE TEST DEMOS:');
+    console.log('- Doctor Pending Review: doctor.pending@smartcare.hospital');
+    console.log('- Doctor Rejected:       doctor.rejected@smartcare.hospital');
+    console.log('- Patient Unverified:    patient.unverified@smartcare.hospital');
+    console.log('- Hospital Pending Appr: hospital.pending@smartcare.hospital');
     console.log('======================================================\n');
 
     if (shouldExit) {

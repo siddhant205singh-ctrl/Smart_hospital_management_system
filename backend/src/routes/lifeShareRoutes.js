@@ -29,20 +29,20 @@ router.post('/donations', protect, authorize('blood_bank_officer', 'admin'), rec
 
 // Inventory
 router.get('/blood-inventory/public', getPublicBloodAvailability);
-router.get('/blood-inventory/hospital/:hospitalId', protect, authorize('blood_bank_officer', 'admin', 'doctor'), getHospitalInventory);
+router.get('/blood-inventory/hospital/:hospitalId', protect, authorize('blood_bank_officer', 'admin', 'doctor', 'hospital'), getHospitalInventory);
 
 // Blood Requests & Allocation (Clinical Urgency Governed)
-router.post('/blood-requests', protect, authorize('doctor', 'blood_bank_officer', 'admin'), createBloodRequest);
-router.get('/blood-requests', protect, authorize('doctor', 'blood_bank_officer', 'admin'), getBloodRequests);
-router.post('/blood-requests/:id/allocate', protect, authorize('blood_bank_officer', 'admin'), allocateBloodUnits);
+router.post('/blood-requests', protect, authorize('doctor', 'blood_bank_officer', 'admin', 'hospital'), createBloodRequest);
+router.get('/blood-requests', protect, authorize('doctor', 'blood_bank_officer', 'admin', 'hospital'), getBloodRequests);
+router.post('/blood-requests/:id/allocate', protect, authorize('blood_bank_officer', 'admin', 'hospital'), allocateBloodUnits);
 
 // Family Links
 router.post('/family-links', protect, linkFamilyMember);
-router.put('/family-links/:id/verify', protect, authorize('blood_bank_officer', 'admin'), verifyFamilyLink);
+router.put('/family-links/:id/verify', protect, authorize('blood_bank_officer', 'admin', 'hospital'), verifyFamilyLink);
 
 // Donor Family Fast-Track Settings & Governance
 router.get('/fast-track/settings', protect, getFastTrackSettings);
-router.put('/fast-track/settings', protect, authorize('admin'), updateFastTrackSettings);
+router.put('/fast-track/settings', protect, authorize('admin', 'hospital'), updateFastTrackSettings);
 router.get('/fast-track/audit-logs', protect, authorize('admin'), getFastTrackAuditLogs);
 
 module.exports = router;

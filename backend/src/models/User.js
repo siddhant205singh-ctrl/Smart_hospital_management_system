@@ -8,9 +8,23 @@ const userSchema = new mongoose.Schema({
   phone: { type: String, required: true, trim: true },
   role: { 
     type: String, 
-    enum: ['patient', 'doctor', 'admin', 'receptionist', 'blood_bank_officer'],
+    enum: ['patient', 'doctor', 'hospital_admin', 'admin', 'receptionist', 'blood_bank_officer', 'hospital', 'super_admin'],
     default: 'patient' 
   },
+  status: {
+    type: String,
+    enum: ['pending_email_verification', 'pending_approval', 'active', 'rejected', 'suspended'],
+    default: 'pending_email_verification',
+    index: true
+  },
+  emailVerifiedAt: { type: Date },
+  twoFactorEnabled: { type: Boolean, default: false },
+  lastLoginAt: { type: Date },
+  lastLoginIp: { type: String },
+  failedLoginAttempts: { type: Number, default: 0 },
+  lockoutUntil: { type: Date },
+  currentApprovalRequestId: { type: mongoose.Schema.Types.ObjectId, ref: 'ApprovalRequest' },
+  rejectionReason: { type: String, default: '' },
   hospitalId: { type: mongoose.Schema.Types.ObjectId, ref: 'Hospital' },
   avatar: { type: String, default: '' },
   familyMembers: [{

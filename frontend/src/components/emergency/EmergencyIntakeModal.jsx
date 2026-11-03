@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTranslation } from 'react-i18next';
 import api from '../../services/api';
 import {
   AlertTriangle,
@@ -36,6 +37,7 @@ const RED_FLAGS = [
 
 export default function EmergencyIntakeModal({ isOpen, onClose, onCaseSubmitted }) {
   const { user } = useAuth();
+  const { t } = useTranslation();
 
   // Mode: 'finder' (Nearest Network Hospitals) or 'intake' (Manual Triage Form)
   const [activeTab, setActiveTab] = useState('finder');
@@ -240,10 +242,10 @@ export default function EmergencyIntakeModal({ isOpen, onClose, onCaseSubmitted 
           <div>
             <h3 className="font-black text-base sm:text-lg text-slate-900 dark:text-white flex items-center space-x-2">
               <span className="w-3 h-3 rounded-full bg-rose-500 radar-live"></span>
-              <span>Emergency Gateway & Hospital Finder</span>
+              <span>{t('emergency.modalTitle')}</span>
             </h3>
             <p className="text-[11px] text-slate-500">
-              Locate nearby 24x7 ER network hospitals, inspect live doctor availability, and reserve immediate triage.
+              {t('emergency.subTitle')}
             </p>
           </div>
           <button
@@ -340,7 +342,7 @@ export default function EmergencyIntakeModal({ isOpen, onClose, onCaseSubmitted 
                 }`}
               >
                 <Compass className="w-3.5 h-3.5" />
-                <span>Nearest Hospitals & Doctors</span>
+                <span>{t('emergency.tabFinder')}</span>
               </button>
 
               <button
@@ -353,15 +355,15 @@ export default function EmergencyIntakeModal({ isOpen, onClose, onCaseSubmitted 
                 }`}
               >
                 <Activity className="w-3.5 h-3.5" />
-                <span>Detailed Triage Intake Form</span>
+                <span>{t('emergency.tabIntake')}</span>
               </button>
             </div>
 
             {/* Symptom Selection Quick Chips (Present on both tabs) */}
             <div className="space-y-1.5">
               <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
-                <span>Select Chief Emergency Symptom:</span>
-                <span className="text-[10px] text-slate-400">Strictly governs triage priority & clinical matching</span>
+                <span>{t('emergency.selectSymptom')}:</span>
+                <span className="text-[10px] text-slate-400">Strictly governs triage priority</span>
               </label>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">

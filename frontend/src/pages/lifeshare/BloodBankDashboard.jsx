@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
 import RaiseBloodAlertModal from './RaiseBloodAlertModal';
+import RaiseBloodRequestModal from '../../components/lifeshare/RaiseBloodRequestModal';
 import {
   Droplet,
   Shield,
@@ -16,7 +17,8 @@ import {
   PackageCheck,
   Radio,
   CheckCircle2,
-  Zap
+  Zap,
+  Send
 } from 'lucide-react';
 
 export default function BloodBankDashboard() {
@@ -26,6 +28,7 @@ export default function BloodBankDashboard() {
   const [loading, setLoading] = useState(true);
   const [showDonationModal, setShowDonationModal] = useState(false);
   const [showAlertModal, setShowAlertModal] = useState(false);
+  const [showBloodRequestModal, setShowBloodRequestModal] = useState(false);
 
   // New Verified Donation Form
   const [donationForm, setDonationForm] = useState({
@@ -138,6 +141,14 @@ export default function BloodBankDashboard() {
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-shrink-0 w-full sm:w-auto">
           <button
+            onClick={() => setShowBloodRequestModal(true)}
+            className="px-4 py-2.5 bg-white text-rose-700 hover:bg-rose-50 font-bold text-xs rounded-xl shadow-lg transition flex items-center justify-center space-x-1.5"
+          >
+            <Droplet className="w-4 h-4 fill-rose-600 text-rose-600" />
+            <span>Raise Blood Request</span>
+          </button>
+
+          <button
             onClick={() => setShowAlertModal(true)}
             className="px-4 py-2.5 bg-rose-950 hover:bg-rose-900 text-white font-bold text-xs rounded-xl shadow-lg transition flex items-center justify-center space-x-1.5"
           >
@@ -147,7 +158,7 @@ export default function BloodBankDashboard() {
 
           <button
             onClick={() => setShowDonationModal(true)}
-            className="px-5 py-2.5 bg-white text-rose-700 hover:bg-rose-50 font-bold text-xs rounded-xl shadow-lg transition flex items-center justify-center space-x-1.5"
+            className="px-4 py-2.5 bg-rose-800 hover:bg-rose-900 text-white font-bold text-xs rounded-xl shadow-lg transition flex items-center justify-center space-x-1.5"
           >
             <Plus className="w-4 h-4" />
             <span>Record Verified Donation</span>
@@ -233,17 +244,25 @@ export default function BloodBankDashboard() {
               Sorting: 1st Clinical Urgency → 2nd Fast-Track Administrative Processing → 3rd FIFO
             </p>
           </div>
+          <button
+            onClick={() => setShowBloodRequestModal(true)}
+            className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 rounded-xl font-bold text-xs flex items-center space-x-1 transition"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Raise Blood Request</span>
+          </button>
         </div>
 
         <div className="overflow-x-auto -mx-6 px-6 sm:mx-0 sm:px-0">
-          <table className="w-full text-left text-xs min-w-[700px]">
+          <table className="w-full text-left text-xs min-w-[750px]">
             <thead>
               <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400">
                 <th className="pb-3">Request ID</th>
-                <th className="pb-3">Patient</th>
+                <th className="pb-3">Patient / Case</th>
                 <th className="pb-3">Blood & Component</th>
                 <th className="pb-3">Clinical Urgency</th>
-                <th className="pb-3">Donor Family Fast-Track</th>
+                <th className="pb-3">Voluntary Drive</th>
+                <th className="pb-3">Donor Fast-Track</th>
                 <th className="pb-3">Processing Fee</th>
                 <th className="pb-3">Status</th>
                 <th className="pb-3 text-right">Action</th>
@@ -256,8 +275,10 @@ export default function BloodBankDashboard() {
                     {req.requestId}
                   </td>
                   <td className="py-3 font-bold text-slate-900 dark:text-white">
-                    {req.patientId?.name}
-                    <span className="block text-[10px] text-slate-400 font-normal">{req.clinicalDiagnosis}</span>
+                    {req.patientName || req.patientId?.name || 'Emergency Case'}
+                    <span className="block text-[10px] text-slate-400 font-normal">
+                      {req.clinicalDiagnosis || (req.requestedBy ? `Requested by ${req.requestedBy.name}` : '')}
+                    </span>
                   </td>
                   <td className="py-3 font-bold text-teal-600 dark:text-teal-400">
                     {req.bloodGroup} • {req.unitsRequested} Unit(s)
@@ -277,13 +298,23 @@ export default function BloodBankDashboard() {
                     </span>
                   </td>
                   <td className="py-3">
+                    {req.voluntaryDonationStarted ? (
+                      <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 text-[10px] font-bold border border-rose-300 dark:border-rose-800">
+                        <Radio className="w-3 h-3 text-rose-600 animate-pulse" />
+                        <span>Active Drive</span>
+                      </span>
+                    ) : (
+                      <span className="text-slate-400 text-[11px]">Stock Sufficient</span>
+                    )}
+                  </td>
+                  <td className="py-3">
                     {req.fastTrackApplied || req.isPriorityDonorFamily ? (
                       <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 text-[10px] font-bold border border-amber-300 dark:border-amber-700">
                         <Zap className="w-3 h-3 text-amber-500 fill-amber-500" />
-                        <span>⚡ Fast-Track (Pre-Verified)</span>
+                        <span>⚡ Fast-Track</span>
                       </span>
                     ) : (
-                      <span className="text-slate-400 text-[11px]">Standard Queue</span>
+                      <span className="text-slate-400 text-[11px]">Standard</span>
                     )}
                   </td>
                   <td className="py-3 font-bold">
@@ -459,6 +490,13 @@ export default function BloodBankDashboard() {
         isOpen={showAlertModal}
         onClose={() => setShowAlertModal(false)}
         onAlertCreated={() => fetchData()}
+      />
+
+      {/* Raise Blood Request Modal with Auto Voluntary Donation Check */}
+      <RaiseBloodRequestModal
+        isOpen={showBloodRequestModal}
+        onClose={() => setShowBloodRequestModal(false)}
+        onSuccess={() => fetchData()}
       />
     </div>
   );

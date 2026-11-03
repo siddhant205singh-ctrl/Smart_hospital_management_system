@@ -5,6 +5,7 @@
   "scripts": {
     "start:backend": "cd backend && npm run dev",
     "start:frontend": "cd frontend && npm run dev",
-    "seed": "cd backend && npm run seed"
+    "seed": "cd backend && npm run seed",
+    "test-smtp": "npm --prefix backend run test-smtp"
   }
 }

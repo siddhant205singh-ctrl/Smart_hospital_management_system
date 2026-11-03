@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../contexts/SocketContext';
+import { useTranslation } from 'react-i18next';
 import api from '../../services/api';
 import LiveProgressRing from '../../components/queue/LiveProgressRing';
 import LeaveNowBanner from '../../components/queue/LeaveNowBanner';
@@ -23,6 +24,7 @@ import {
 export default function LiveQueueTrackerPage() {
   const { user } = useAuth();
   const { socket, joinPatientQueue } = useSocket();
+  const { t } = useTranslation();
 
   const [appointments, setAppointments] = useState([]);
   const [selectedAppt, setSelectedAppt] = useState(null);
@@ -156,10 +158,10 @@ export default function LiveQueueTrackerPage() {
         </div>
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
-            No Active Queue Appointments
+            {t('queue.noActiveQueue')}
           </h2>
           <p className="text-xs text-slate-500 max-w-md mx-auto mt-1">
-            You do not currently have any active queue tokens. Any cancelled appointments have been released.
+            {t('patient.subtext')}
           </p>
         </div>
 
@@ -167,14 +169,14 @@ export default function LiveQueueTrackerPage() {
           to="/doctors"
           className="inline-flex items-center space-x-2 px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-md transition"
         >
-          <span>Find Doctors & Book Appointment</span>
+          <span>{t('hero.ctaBook')}</span>
           <ArrowRight className="w-4 h-4" />
         </Link>
 
         {pastAppts.length > 0 && (
           <div className="pt-6 border-t border-slate-100 dark:border-slate-800 text-left">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
-              Past / Cancelled Appointments ({pastAppts.length})
+              {t('patient.myAppointments')} ({pastAppts.length})
             </h4>
             <div className="space-y-2">
               {pastAppts.map(p => (
@@ -214,15 +216,15 @@ export default function LiveQueueTrackerPage() {
           <div className="flex items-center space-x-3">
             <Volume2 className="w-6 h-6" />
             <div>
-              <strong className="block text-sm font-bold">YOUR TOKEN IS BEING CALLED!</strong>
-              <span className="text-xs">Please proceed to Room {selectedAppt.doctorId?.roomNumber} for your consultation.</span>
+              <strong className="block text-sm font-bold">{t('queue.currentlyServing')}</strong>
+              <span className="text-xs">{t('common.room')} {selectedAppt.doctorId?.roomNumber}</span>
             </div>
           </div>
           <button
             onClick={() => setAudioAlert(false)}
             className="px-3 py-1 bg-white/20 hover:bg-white/30 rounded-lg text-xs font-bold"
           >
-            Acknowledge
+            {t('common.close')}
           </button>
         </div>
       )}
@@ -233,11 +235,11 @@ export default function LiveQueueTrackerPage() {
           <div className="flex items-center space-x-2">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 radar-live"></span>
             <span className="text-xs font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400">
-              Real-time Queue Gateway
+              {t('hero.badge')}
             </span>
           </div>
           <h1 className="text-3xl font-black text-slate-900 dark:text-white mt-1">
-            Live Queue Tracker
+            {t('queue.liveTracker')}
           </h1>
         </div>
 
@@ -289,7 +291,7 @@ export default function LiveQueueTrackerPage() {
         <div className="lg:col-span-5 space-y-4">
           {/* Doctor Info Card */}
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-md space-y-4">
-            <h3 className="font-bold text-xs uppercase tracking-wider text-slate-400">Consulting Specialist</h3>
+            <h3 className="font-bold text-xs uppercase tracking-wider text-slate-400">{t('queue.doctor')}</h3>
 
             <div className="flex items-center space-x-3.5">
               <img
@@ -305,23 +307,19 @@ export default function LiveQueueTrackerPage() {
                   {selectedAppt.departmentId?.name || 'Cardiology'}
                 </span>
                 <span className="text-[11px] text-slate-400 block">
-                  Room: <strong>{selectedAppt.doctorId?.roomNumber || 'OPD-101'}</strong>
+                  {t('queue.roomNumber')}: <strong>{selectedAppt.doctorId?.roomNumber || 'OPD-101'}</strong>
                 </span>
               </div>
             </div>
 
             <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-2 text-xs text-slate-600 dark:text-slate-300">
               <p className="flex items-center justify-between">
-                <span className="text-slate-400">Hospital:</span>
+                <span className="text-slate-400">{t('queue.hospital')}:</span>
                 <span className="font-bold text-slate-800 dark:text-slate-200">{selectedAppt.hospitalId?.name}</span>
               </p>
               <p className="flex items-center justify-between">
-                <span className="text-slate-400">Appointment Date:</span>
-                <span className="font-bold">{selectedAppt.date} ({selectedAppt.timeSlot})</span>
-              </p>
-              <p className="flex items-center justify-between">
-                <span className="text-slate-400">Patient:</span>
-                <span className="font-bold">{selectedAppt.bookedForFamilyMember || user?.name}</span>
+                <span className="text-slate-400">{t('common.status')}:</span>
+                <span className="font-bold capitalize">{selectedAppt.status?.replace('_', ' ')}</span>
               </p>
             </div>
           </div>
@@ -330,11 +328,11 @@ export default function LiveQueueTrackerPage() {
           <div className="bg-gradient-to-br from-teal-700 via-teal-600 to-cyan-700 text-white rounded-3xl p-6 shadow-xl flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
             <div>
               <span className="text-[10px] uppercase font-bold tracking-wider text-teal-200 block">
-                Contactless Triage Check-in
+                {t('queue.yourToken')}
               </span>
-              <h4 className="text-xl font-black mt-0.5">Digital QR Token</h4>
+              <h4 className="text-xl font-black mt-0.5">#{selectedAppt.tokenNumber} ({selectedAppt.tokenCode})</h4>
               <p className="text-xs text-teal-100 max-w-[200px] mt-1">
-                Scan this at the hospital reception kiosk or OPD nurse desk.
+                {t('queue.currentlyServing')}: #{queueStatus?.currentToken || 1}
               </p>
             </div>
 
@@ -351,8 +349,8 @@ export default function LiveQueueTrackerPage() {
           {['scheduled', 'checked_in', 'called'].includes(selectedAppt.status) && (
             <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div>
-                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">Unable to attend today?</span>
-                <span className="text-[11px] text-slate-400">Cancel appointment to free up the slot for waiting patients.</span>
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">{t('queue.cancelAppt')}?</span>
+                <span className="text-[11px] text-slate-400">{t('queue.cancelConfirm')}</span>
               </div>
               <button
                 onClick={handleCancelAppointment}
@@ -360,7 +358,7 @@ export default function LiveQueueTrackerPage() {
                 className="w-full sm:w-auto px-4 py-2.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 text-rose-600 dark:text-rose-300 border border-rose-200 dark:border-rose-900 rounded-xl font-bold text-xs flex items-center justify-center space-x-1.5 transition flex-shrink-0"
               >
                 <XCircle className="w-4 h-4 text-rose-500" />
-                <span>{cancelling ? 'Cancelling...' : 'Cancel Appointment'}</span>
+                <span>{cancelling ? t('common.loading') : t('queue.cancelAppt')}</span>
               </button>
             </div>
           )}
@@ -371,17 +369,17 @@ export default function LiveQueueTrackerPage() {
       {showQrModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-sm w-full max-h-[90vh] overflow-y-auto text-center shadow-2xl border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95">
-            <h3 className="font-bold text-base text-slate-900 dark:text-white">Token #{selectedAppt.tokenNumber}</h3>
+            <h3 className="font-bold text-base text-slate-900 dark:text-white">{t('queue.yourToken')}: #{selectedAppt.tokenNumber}</h3>
             <span className="text-xs font-mono font-bold text-teal-600">{selectedAppt.tokenCode}</span>
             <div className="my-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl inline-block border">
               <img src={selectedAppt.qrCode} alt="Enlarged QR" className="w-56 h-56 object-contain" />
             </div>
-            <p className="text-[11px] text-slate-500">Hold near scanner at hospital kiosk</p>
+            <p className="text-[11px] text-slate-500">{t('queue.kioskScanNotice', 'Hold near scanner at hospital kiosk')}</p>
             <button
               onClick={() => setShowQrModal(false)}
               className="mt-4 w-full py-2 bg-slate-900 dark:bg-slate-700 text-white text-xs font-bold rounded-xl"
             >
-              Close
+              {t('common.close')}
             </button>
           </div>
         </div>

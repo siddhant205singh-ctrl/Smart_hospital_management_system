@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTranslation } from 'react-i18next';
 import api from '../../services/api';
 import {
   Search,
@@ -19,6 +20,7 @@ import {
 
 export default function DoctorDirectory() {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -124,9 +126,9 @@ export default function DoctorDirectory() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-black text-slate-900 dark:text-white">Find Doctors Across Network</h1>
+        <h1 className="text-3xl font-black text-slate-900 dark:text-white">{t('doctors.title')}</h1>
         <p className="text-xs sm:text-sm text-slate-500 mt-1">
-          Real-time availability, dynamic wait times, and instant digital token generation across 3 connected hospitals.
+          {t('doctors.subtitle')}
         </p>
       </div>
 
@@ -140,7 +142,7 @@ export default function DoctorDirectory() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Doctor or symptom..."
+              placeholder={t('doctors.searchPlaceholder')}
               className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-500"
             />
           </div>
@@ -151,7 +153,7 @@ export default function DoctorDirectory() {
             onChange={(e) => setSpecialty(e.target.value)}
             className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-500"
           >
-            <option value="">All Specialties</option>
+            <option value="">{t('doctors.allSpecialties')}</option>
             {specialtiesList.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
 
@@ -161,7 +163,7 @@ export default function DoctorDirectory() {
             onChange={(e) => setHospitalId(e.target.value)}
             className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-500"
           >
-            <option value="">All 3 Connected Hospitals</option>
+            <option value="">{t('doctors.allHospitals')}</option>
             {hospitals.map(h => <option key={h._id} value={h._id}>{h.name}</option>)}
           </select>
 
@@ -171,11 +173,11 @@ export default function DoctorDirectory() {
             onChange={(e) => setLanguage(e.target.value)}
             className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-500"
           >
-            <option value="">Any Language</option>
+            <option value="">{t('common.all')} Languages</option>
             <option value="English">English</option>
-            <option value="Hindi">Hindi</option>
-            <option value="Bengali">Bengali</option>
-            <option value="Punjabi">Punjabi</option>
+            <option value="Hindi">हिन्दी (Hindi)</option>
+            <option value="Bengali">বাংলা (Bengali)</option>
+            <option value="Punjabi">ਪੰਜਾਬੀ (Punjabi)</option>
           </select>
 
           {/* Live Status */}
@@ -184,10 +186,10 @@ export default function DoctorDirectory() {
             onChange={(e) => setLiveStatus(e.target.value)}
             className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-500"
           >
-            <option value="">All Live Statuses</option>
-            <option value="available">🟢 Available Now</option>
-            <option value="in_consultation">🟡 In Consultation</option>
-            <option value="on_break">☕ On Break</option>
+            <option value="">{t('common.all')} Statuses</option>
+            <option value="available">🟢 {t('common.available')}</option>
+            <option value="in_consultation">🟡 {t('common.busy')}</option>
+            <option value="on_break">☕ {t('common.offline')}</option>
           </select>
         </div>
 
@@ -200,9 +202,9 @@ export default function DoctorDirectory() {
               onChange={(e) => setVerifiedOnly(e.target.checked)}
               className="rounded text-teal-600 focus:ring-teal-500"
             />
-            <span>Show Verified Medical Council Practitioners Only</span>
+            <span>{t('doctors.filterVerified')}</span>
           </label>
-          <span className="text-slate-400 text-[11px]">{doctors.length} Specialists Available</span>
+          <span className="text-slate-400 text-[11px]">{doctors.length} {t('doctors.title')}</span>
         </div>
       </div>
 
@@ -216,8 +218,8 @@ export default function DoctorDirectory() {
       ) : doctors.length === 0 ? (
         <div className="text-center py-16 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800">
           <Activity className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-          <h3 className="font-bold text-base text-slate-700 dark:text-slate-300">No doctors match your filters</h3>
-          <p className="text-xs text-slate-400 mt-1">Try resetting the specialty or hospital filter.</p>
+          <h3 className="font-bold text-base text-slate-700 dark:text-slate-300">{t('doctors.noDoctors')}</h3>
+          <p className="text-xs text-slate-400 mt-1">{t('doctors.resetFilters')}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -247,7 +249,7 @@ export default function DoctorDirectory() {
                         {doc.isVerified && (
                           <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 flex items-center space-x-0.5">
                             <CheckCircle className="w-2.5 h-2.5 text-emerald-600" />
-                            <span>Verified</span>
+                            <span>{t('common.verified')}</span>
                           </span>
                         )}
                       </div>
@@ -276,7 +278,7 @@ export default function DoctorDirectory() {
                         : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
                     }`}
                   >
-                    {doc.liveStatus?.replace('_', ' ')}
+                    {doc.liveStatus === 'available' ? t('common.available') : doc.liveStatus === 'in_consultation' ? t('common.busy') : t('common.offline')}
                   </span>
                 </div>
 
@@ -288,7 +290,7 @@ export default function DoctorDirectory() {
                   </p>
                   <p className="flex items-center space-x-1.5">
                     <Clock className="w-3.5 h-3.5 text-cyan-600 flex-shrink-0" />
-                    <span>Consultation Room: <strong>{doc.roomNumber}</strong></span>
+                    <span>{t('common.room')}: <strong>{doc.roomNumber}</strong></span>
                   </p>
                   {doc.qualifications?.length > 0 && (
                     <p className="text-[11px] text-teal-700 dark:text-teal-300 font-semibold truncate">
@@ -305,7 +307,7 @@ export default function DoctorDirectory() {
               {/* Fee & Book Button */}
               <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
                 <div>
-                  <span className="text-[10px] uppercase text-slate-400 block">Consultation Fee</span>
+                  <span className="text-[10px] uppercase text-slate-400 block">{t('common.fee')}</span>
                   <span className="text-base font-black text-slate-900 dark:text-white">
                     ₹{doc.consultationFee}
                   </span>
@@ -316,7 +318,7 @@ export default function DoctorDirectory() {
                   className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-md transition flex items-center space-x-1"
                 >
                   <Calendar className="w-3.5 h-3.5" />
-                  <span>Book Slot</span>
+                  <span>{t('doctors.bookSlot')}</span>
                 </button>
               </div>
             </div>
@@ -330,7 +332,7 @@ export default function DoctorDirectory() {
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 sm:p-7 max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95 my-4 sm:my-8">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
               <div>
-                <h3 className="font-bold text-base text-slate-900 dark:text-white">Book Smart Consultation</h3>
+                <h3 className="font-bold text-base text-slate-900 dark:text-white">{t('doctors.bookSlot')}</h3>
                 <p className="text-xs text-teal-600 dark:text-teal-400 font-medium">
                   {selectedDoctor.userId?.name} ({selectedDoctor.specialty})
                 </p>

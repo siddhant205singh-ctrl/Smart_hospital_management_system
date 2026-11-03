@@ -86,7 +86,7 @@ export default function LandingPage() {
                   type="text"
                   value={searchDoctor}
                   onChange={(e) => setSearchDoctor(e.target.value)}
-                  placeholder="Search doctor, specialty (e.g. Cardiology)..."
+                  placeholder={t('hero.searchPlaceholder')}
                   className="w-full px-3 py-2 text-xs sm:text-sm bg-transparent border-none text-slate-900 dark:text-slate-100 focus:outline-none"
                 />
               </div>
@@ -94,7 +94,7 @@ export default function LandingPage() {
                 type="submit"
                 className="px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-md transition text-center"
               >
-                Search
+                {t('hero.searchButton')}
               </button>
             </form>
 
@@ -106,7 +106,7 @@ export default function LandingPage() {
                 className="px-5 py-3 bg-rose-600 hover:bg-rose-700 text-white font-black text-xs rounded-xl shadow-lg shadow-rose-600/30 transition flex items-center justify-center space-x-1.5 animate-pulse"
               >
                 <ShieldAlert className="w-4 h-4" />
-                <span>Emergency Triage</span>
+                <span>{t('nav.emergencyIntake')}</span>
               </button>
               <Link
                 to="/doctors"
@@ -135,11 +135,11 @@ export default function LandingPage() {
             <div className="pt-4 flex flex-wrap items-center justify-center gap-y-2 gap-x-4 sm:gap-x-6 text-[11px] sm:text-xs text-slate-500">
               <span className="flex items-center space-x-1.5">
                 <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500" />
-                <span>Consent Governed</span>
+                <span>{t('nav.consent')}</span>
               </span>
               <span className="flex items-center space-x-1.5">
                 <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500" />
-                <span>100% Voluntary Blood</span>
+                <span>{t('landing.donorBadge')}</span>
               </span>
             </div>
           </div>
@@ -150,13 +150,13 @@ export default function LandingPage() {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-2xl mx-auto space-y-2 mb-10">
           <span className="text-xs font-bold uppercase tracking-widest text-teal-600 dark:text-teal-400">
-            Connected Healthcare Ecosystem
+            {t('landing.hospitalsBadge')}
           </span>
           <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white">
-            One Search Across 3 Premier Hospitals
+            {t('landing.hospitalsTitle')}
           </h2>
           <p className="text-xs sm:text-sm text-slate-500">
-            SmartCare unifies doctor schedules, live waiting queues, and life-saving blood banks into a single patient view.
+            {t('landing.hospitalsSubtitle')}
           </p>
         </div>
 
@@ -173,7 +173,7 @@ export default function LandingPage() {
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
                 <div className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-emerald-500 text-white text-[10px] font-bold shadow-md">
-                  Active Network Node
+                  {t('common.verified')}
                 </div>
               </div>
               <div className="p-6 space-y-3">
@@ -183,12 +183,12 @@ export default function LandingPage() {
                   <span>{h.address?.street}, {h.city}</span>
                 </p>
                 <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
-                  <span className="text-slate-500">Emergency: <strong>{h.emergencyContact}</strong></span>
+                  <span className="text-slate-500">{t('common.emergency')}: <strong>{h.emergencyContact}</strong></span>
                   <Link
                     to={`/doctors?hospitalId=${h._id}`}
                     className="font-bold text-teal-600 hover:text-teal-700 flex items-center space-x-1"
                   >
-                    <span>View Doctors</span>
+                    <span>{t('landing.viewDoctors')}</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </Link>
                 </div>
@@ -209,48 +209,48 @@ export default function LandingPage() {
           <div className="relative z-10 max-w-3xl space-y-4">
             <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-rose-500/30 border border-rose-400/40 text-rose-200 text-xs font-bold">
               <Droplet className="w-3.5 h-3.5 fill-rose-300" />
-              <span>LifeShare Voluntary Donor Program</span>
+              <span>{t('landing.donorBadge')}</span>
             </div>
 
             <h2 className="text-2xl sm:text-4xl font-black tracking-tight leading-tight">
-              Donate Blood. Save Lives. Protect Your Family.
+              {t('landing.donorTitle')}
             </h2>
 
             <p className="text-xs sm:text-base text-rose-100 leading-relaxed">
-              We honor 100% voluntary, unpaid blood donors with official milestone badges, thank-you certificates, and Donor Family Fast-Track benefits (waived processing fees & expedited paperwork) during clinical emergencies.
+              {t('landing.donorSubtitle')}
             </p>
 
-            {/* <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-4 pt-3 sm:pt-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-4 pt-3 sm:pt-4">
               <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-sm border border-white/10">
-                <span className="text-lg sm:text-xl font-black block">1st Gift</span>
-                <span className="text-[11px] sm:text-xs text-rose-200">First Blood Gift</span>
+                <span className="text-lg sm:text-xl font-black block">{t('landing.donorTier1Sub')}</span>
+                <span className="text-[11px] sm:text-xs text-rose-200">{t('landing.donorTier1')}</span>
               </div>
               <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-sm border border-white/10">
-                <span className="text-lg sm:text-xl font-black block">3+ Gifts</span>
-                <span className="text-[11px] sm:text-xs text-rose-200">Dedicated Life Saver</span>
+                <span className="text-lg sm:text-xl font-black block">{t('landing.donorTier2Sub')}</span>
+                <span className="text-[11px] sm:text-xs text-rose-200">{t('landing.donorTier2')}</span>
               </div>
               <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-sm border border-white/10">
-                <span className="text-lg sm:text-xl font-black block text-amber-300">5+ Gifts</span>
-                <span className="text-[11px] sm:text-xs text-amber-200">Bronze Shield</span>
+                <span className="text-lg sm:text-xl font-black block text-amber-300">{t('landing.donorTier3Sub')}</span>
+                <span className="text-[11px] sm:text-xs text-amber-200">{t('landing.donorTier3')}</span>
               </div>
               <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-sm border border-white/10">
-                <span className="text-lg sm:text-xl font-black block text-cyan-300">10+ Gifts</span>
-                <span className="text-[11px] sm:text-xs text-cyan-200">Gold Star Honor</span>
+                <span className="text-lg sm:text-xl font-black block text-cyan-300">{t('landing.donorTier4Sub')}</span>
+                <span className="text-[11px] sm:text-xs text-cyan-200">{t('landing.donorTier4')}</span>
               </div>
-            </div> */}
+            </div>
 
             <div className="pt-3 sm:pt-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3">
               <Link
                 to="/lifeshare"
                 className="px-6 py-3 bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs rounded-xl shadow-lg transition text-center"
               >
-                Register as Voluntary Donor
+                {t('landing.registerDonor')}
               </Link>
               <Link
                 to="/blood-availability"
                 className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white border border-white/20 font-bold text-xs rounded-xl transition text-center"
               >
-                View Live Blood Stock
+                {t('landing.viewBloodStock')}
               </Link>
             </div>
           </div>
@@ -261,11 +261,14 @@ export default function LandingPage() {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-2xl mx-auto space-y-2 mb-12">
           <span className="text-xs font-bold uppercase tracking-widest text-teal-600 dark:text-teal-400">
-            Engineered for Humanity
+            SmartCare Technology
           </span>
           <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white">
-            Why SmartCare Outperforms Traditional Portals
+            {t('landing.featuresTitle')}
           </h2>
+          <p className="text-xs sm:text-sm text-slate-500">
+            {t('landing.featuresSubtitle')}
+          </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -273,9 +276,9 @@ export default function LandingPage() {
             <div className="w-12 h-12 rounded-2xl bg-teal-100 dark:bg-teal-950 flex items-center justify-center text-teal-600 mb-4">
               <Clock className="w-6 h-6" />
             </div>
-            <h3 className="font-bold text-base text-slate-900 dark:text-white">Dynamic Wait Engine</h3>
+            <h3 className="font-bold text-base text-slate-900 dark:text-white">{t('landing.feat1Title')}</h3>
             <p className="text-xs text-slate-500 mt-2 leading-relaxed">
-              Considers a rolling average of actual consultation durations per doctor. Pushes real-time updates through Socket.IO whenever consultations start, end, or patients cancel.
+              {t('landing.feat1Desc')}
             </p>
           </div>
 
@@ -283,9 +286,9 @@ export default function LandingPage() {
             <div className="w-12 h-12 rounded-2xl bg-cyan-100 dark:bg-cyan-950 flex items-center justify-center text-cyan-600 mb-4">
               <Shield className="w-6 h-6" />
             </div>
-            <h3 className="font-bold text-base text-slate-900 dark:text-white">Continuous Health Timeline</h3>
+            <h3 className="font-bold text-base text-slate-900 dark:text-white">{t('landing.feat3Title')}</h3>
             <p className="text-xs text-slate-500 mt-2 leading-relaxed">
-              One chronological stream of prescriptions, lab reports, AI report summaries, and blood donation milestones. Protected by a granular, patient-controlled consent manager.
+              {t('landing.feat3Desc')}
             </p>
           </div>
 
@@ -293,9 +296,9 @@ export default function LandingPage() {
             <div className="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-950 flex items-center justify-center text-rose-600 mb-4">
               <ShieldAlert className="w-6 h-6 text-rose-600" />
             </div>
-            <h3 className="font-bold text-base text-slate-900 dark:text-white">Emergency Response & Break-Glass</h3>
+            <h3 className="font-bold text-base text-slate-900 dark:text-white">{t('landing.feat2Title')}</h3>
             <p className="text-xs text-slate-500 mt-2 leading-relaxed">
-              Rules-based clinical triage with direct 112 calling, auto-attached patient health snapshots, and cryptographically logged 24-hour break-glass access for emergency resuscitations.
+              {t('landing.feat2Desc')}
             </p>
           </div>
         </div>

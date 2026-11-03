@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
+import RaiseBloodRequestModal from '../../components/lifeshare/RaiseBloodRequestModal';
+import StaffCredentialingDesk from '../../components/admin/StaffCredentialingDesk';
 import {
   Users,
   Clock,
@@ -13,7 +15,10 @@ import {
   Zap,
   ShieldCheck,
   Stethoscope,
-  Heart
+  Heart,
+  Droplet,
+  Radio,
+  Send
 } from 'lucide-react';
 import {
   LineChart,
@@ -53,19 +58,25 @@ export default function AdminDashboard() {
   const [fastTrackError, setFastTrackError] = useState('');
   const [breakGlassLogs, setBreakGlassLogs] = useState([]);
 
+  // Hospital Blood Requests State
+  const [bloodRequests, setBloodRequests] = useState([]);
+  const [showBloodRequestModal, setShowBloodRequestModal] = useState(false);
+
   const fetchData = async () => {
     try {
-      const [overRes, analRes, docsRes, bgRes, ftRes] = await Promise.all([
+      const [overRes, analRes, docsRes, bgRes, ftRes, bldRes] = await Promise.all([
         api.get('/admin/overview'),
         api.get('/admin/analytics'),
         api.get('/doctors'),
         api.get('/emergency-cases/break-glass-logs').catch(() => ({ data: { logs: [] } })),
-        api.get('/fast-track/settings').catch(() => ({ data: { settings: null } }))
+        api.get('/fast-track/settings').catch(() => ({ data: { settings: null } })),
+        api.get('/blood-requests').catch(() => ({ data: { requests: [] } }))
       ]);
       setOverview(overRes.data);
       setAnalytics(analRes.data);
       setDoctors(docsRes.data.doctors || []);
       setBreakGlassLogs(bgRes.data.logs || []);
+      setBloodRequests(bldRes.data.requests || []);
       if (ftRes.data?.settings) {
         setFastTrackSettings(ftRes.data.settings);
       }
@@ -553,51 +564,117 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Doctor Medical Council Verification Desk */}
+      {/* Hospital Blood Stock & Emergency Requests Module */}
       <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-        <h3 className="font-bold text-base text-slate-900 dark:text-white flex items-center space-x-2">
-          <Stethoscope className="w-5 h-5 text-teal-600" />
-          <span>Medical Council Registration Verification Desk</span>
-        </h3>
-        <p className="text-xs text-slate-500">
-          Verify registered specialist credentials to award the official Verified Doctor Badge.
-        </p>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div>
+            <h3 className="font-bold text-base text-slate-900 dark:text-white flex items-center space-x-2">
+              <Droplet className="w-5 h-5 text-rose-600 fill-rose-600" />
+              <span>Hospital Blood Stock & Emergency Requests</span>
+            </h3>
+            <p className="text-xs text-slate-500">
+              Raise clinical blood requests for hospital departments or patients. If inventory is insufficient, the system automatically starts an urgent voluntary donation drive.
+            </p>
+          </div>
+          <button
+            onClick={() => setShowBloodRequestModal(true)}
+            className="px-4 py-2.5 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white font-bold text-xs rounded-xl shadow-md shadow-rose-600/30 flex items-center space-x-1.5 transition"
+          >
+            <Droplet className="w-4 h-4 fill-white" />
+            <span>Raise Blood Request (Auto Voluntary Drive)</span>
+          </button>
+        </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {doctors.map(doc => (
-            <div
-              key={doc._id}
-              className="p-4 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 flex items-center justify-between"
-            >
-              <div>
-                <div className="flex items-center space-x-1.5">
-                  <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white">
-                    {doc.userId?.name}
-                  </span>
-                  {doc.isVerified && (
-                    <span className="text-[10px] text-emerald-600 font-bold">✓ Verified</span>
-                  )}
-                </div>
-                <span className="text-xs text-teal-600 block">{doc.specialty}</span>
-                <span className="text-[10px] text-slate-400 font-mono block">
-                  Reg: {doc.medicalCouncilRegNumber || 'MCI-REG-VERIFY'}
-                </span>
-              </div>
-
-              {!doc.isVerified ? (
-                <button
-                  onClick={() => handleVerifyDoctor(doc._id)}
-                  className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-sm transition"
-                >
-                  Verify Reg
-                </button>
+        {/* Requests Table */}
+        <div className="overflow-x-auto -mx-6 px-6 sm:mx-0 sm:px-0">
+          <table className="w-full text-left text-xs min-w-[700px]">
+            <thead>
+              <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400">
+                <th className="pb-2.5">Request ID</th>
+                <th className="pb-2.5">Patient / Department</th>
+                <th className="pb-2.5">Blood & Component</th>
+                <th className="pb-2.5">Urgency</th>
+                <th className="pb-2.5">Voluntary Drive</th>
+                <th className="pb-2.5">Fast-Track Status</th>
+                <th className="pb-2.5">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {bloodRequests.length === 0 ? (
+                <tr>
+                  <td colSpan="7" className="py-4 text-center text-slate-400">
+                    No active blood requests logged yet. Click "Raise Blood Request" to log a new clinical requirement.
+                  </td>
+                </tr>
               ) : (
-                <span className="text-[10px] font-bold text-emerald-600 px-2">Approved</span>
+                bloodRequests.slice(0, 8).map(req => (
+                  <tr key={req._id} className="py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                    <td className="py-2.5 font-mono font-bold text-slate-900 dark:text-white">
+                      {req.requestId}
+                    </td>
+                    <td className="py-2.5 font-bold text-slate-800 dark:text-slate-200">
+                      {req.patientName || req.patientId?.name || 'Emergency Dept'}
+                      <span className="block text-[10px] text-slate-400 font-normal truncate max-w-xs">
+                        {req.clinicalDiagnosis}
+                      </span>
+                    </td>
+                    <td className="py-2.5 font-bold text-rose-600 dark:text-rose-400">
+                      {req.bloodGroup} • {req.unitsRequested} Unit(s)
+                      <span className="block text-[10px] text-slate-400 font-normal">{req.component}</span>
+                    </td>
+                    <td className="py-2.5">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                        req.clinicalUrgency === 'critical_emergency'
+                          ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+                          : req.clinicalUrgency === 'urgent_surgery'
+                          ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                          : 'bg-slate-100 text-slate-700'
+                      }`}>
+                        {req.clinicalUrgency?.replace('_', ' ')}
+                      </span>
+                    </td>
+                    <td className="py-2.5">
+                      {req.voluntaryDonationStarted ? (
+                        <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 text-[10px] font-bold border border-rose-300 dark:border-rose-800">
+                          <Radio className="w-3 h-3 text-rose-600 animate-pulse" />
+                          <span>Active Drive</span>
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 text-[11px]">Stock Sufficient</span>
+                      )}
+                    </td>
+                    <td className="py-2.5">
+                      {req.fastTrackApplied ? (
+                        <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 text-[10px] font-bold">
+                          <Zap className="w-3 h-3 text-amber-500 fill-amber-500" />
+                          <span>Pre-Verified</span>
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 text-[11px]">Standard</span>
+                      )}
+                    </td>
+                    <td className="py-2.5 font-semibold capitalize text-slate-700 dark:text-slate-300">
+                      {req.status?.replace('_', ' ')}
+                    </td>
+                  </tr>
+                ))
               )}
-            </div>
-          ))}
+            </tbody>
+          </table>
         </div>
       </div>
+
+      {/* Staff Credentialing & Medical Council Verification Desk */}
+      <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
+        <StaffCredentialingDesk />
+      </div>
+
+      {/* Hospital Blood Request Modal with Auto Voluntary Donation Check */}
+      <RaiseBloodRequestModal
+        isOpen={showBloodRequestModal}
+        onClose={() => setShowBloodRequestModal(false)}
+        onSuccess={() => fetchData()}
+      />
     </div>
   );
 }

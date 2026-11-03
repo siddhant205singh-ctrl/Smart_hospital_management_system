@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { Users, Clock, AlertCircle, XCircle } from 'lucide-react';
 
 export default function LiveProgressRing({
@@ -10,6 +11,7 @@ export default function LiveProgressRing({
   estimatedWaitMinutes = 0,
   status = 'scheduled'
 }) {
+  const { t } = useTranslation();
   const isCancelled = status === 'cancelled';
 
   // Calculate percentage of queue completed
@@ -59,7 +61,7 @@ export default function LiveProgressRing({
           <span className={`text-[10px] sm:text-[11px] uppercase tracking-wider font-bold ${
             isCancelled ? 'text-rose-600 dark:text-rose-400' : 'text-teal-600 dark:text-teal-400'
           }`}>
-            {isCancelled ? 'Cancelled Token' : 'Your Digital Token'}
+            {isCancelled ? 'Cancelled' : t('queue.yourToken')}
           </span>
           <span className={`text-4xl sm:text-6xl font-black tracking-tight my-0.5 sm:my-1 ${
             isCancelled ? 'text-slate-400 line-through' : 'text-slate-900 dark:text-white'
@@ -77,11 +79,11 @@ export default function LiveProgressRing({
           {isCancelled ? (
             <span className="inline-flex items-center space-x-1 text-[11px] text-rose-600 dark:text-rose-400 font-bold mt-2">
               <XCircle className="w-3.5 h-3.5" />
-              <span>Cancelled & Released</span>
+              <span>{t('common.cancel')}</span>
             </span>
           ) : (
             <span className="text-[10px] sm:text-[11px] text-slate-400 mt-1 sm:mt-2 capitalize">
-              Status: <strong className="text-slate-700 dark:text-slate-300">{status.replace('_', ' ')}</strong>
+              {t('queue.status')}: <strong className="text-slate-700 dark:text-slate-300">{status.replace('_', ' ')}</strong>
             </span>
           )}
         </div>
@@ -92,26 +94,26 @@ export default function LiveProgressRing({
         <div className={`p-3 rounded-2xl ${isCancelled ? 'bg-rose-50/50 dark:bg-rose-950/20' : 'bg-slate-50 dark:bg-slate-800/50'}`}>
           <div className="flex items-center justify-center space-x-1.5 text-slate-500 dark:text-slate-400 text-xs mb-1">
             <Users className={`w-4 h-4 ${isCancelled ? 'text-rose-500' : 'text-teal-500'}`} />
-            <span>Patients Ahead</span>
+            <span>{t('queue.patientsAhead')}</span>
           </div>
           <span className={`text-2xl font-bold ${isCancelled ? 'text-slate-400' : 'text-slate-900 dark:text-white'}`}>
             {isCancelled ? 0 : patientsAhead}
           </span>
           <span className="text-[10px] text-slate-400 block mt-0.5">
-            {isCancelled ? 'Slot released back to queue' : `Serving now: #${currentToken || '-'}`}
+            {isCancelled ? 'Released' : `${t('queue.currentlyServing')}: #${currentToken || '-'}`}
           </span>
         </div>
 
         <div className={`p-3 rounded-2xl ${isCancelled ? 'bg-rose-50/50 dark:bg-rose-950/20' : 'bg-slate-50 dark:bg-slate-800/50'}`}>
           <div className="flex items-center justify-center space-x-1.5 text-slate-500 dark:text-slate-400 text-xs mb-1">
             <Clock className={`w-4 h-4 ${isCancelled ? 'text-rose-500' : 'text-cyan-500'}`} />
-            <span>Est. Wait Time</span>
+            <span>{t('queue.estWait')}</span>
           </div>
           <span className={`text-2xl font-bold ${isCancelled ? 'text-slate-400' : 'text-teal-600 dark:text-teal-400'}`}>
-            {isCancelled ? '—' : `${estimatedWaitMinutes} min`}
+            {isCancelled ? '—' : `${estimatedWaitMinutes} ${t('common.mins')}`}
           </span>
           <span className="text-[10px] text-slate-400 block mt-0.5">
-            {isCancelled ? 'No wait (Cancelled)' : 'Rolling avg updated'}
+            {isCancelled ? '—' : 'Real-time ETA'}
           </span>
         </div>
       </div>

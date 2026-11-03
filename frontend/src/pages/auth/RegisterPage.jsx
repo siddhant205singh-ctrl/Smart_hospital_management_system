@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTranslation } from 'react-i18next';
 import { Activity, Lock, Mail, User, Phone, Droplet, ArrowRight } from 'lucide-react';
 
 export default function RegisterPage() {
   const { register } = useAuth();
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
@@ -24,8 +26,8 @@ export default function RegisterPage() {
     setError('');
     setLoading(true);
     try {
-      await register(formData);
-      navigate('/dashboard');
+      const res = await api.post('/auth/register', formData);
+      navigate(`/verify-email?email=${encodeURIComponent(formData.email)}&role=${formData.role || 'patient'}${res.data?.devOtpCode ? `&devOtp=${res.data.devOtpCode}` : ''}`);
     } catch (err) {
       setError(err.response?.data?.error || 'Registration failed');
     } finally {
@@ -40,8 +42,8 @@ export default function RegisterPage() {
           <div className="w-12 h-12 rounded-2xl bg-teal-600 flex items-center justify-center text-white mx-auto shadow-lg shadow-teal-600/30">
             <Activity className="w-7 h-7" />
           </div>
-          <h2 className="mt-4 text-2xl font-black text-slate-900 dark:text-white">Create SmartCare Account</h2>
-          <p className="mt-1 text-xs text-slate-500">Fast digital booking, queue tracking & family care</p>
+          <h2 className="mt-4 text-2xl font-black text-slate-900 dark:text-white">{t('auth.registerTitle')}</h2>
+          <p className="mt-1 text-xs text-slate-500">{t('auth.registerSubtitle')}</p>
         </div>
 
         {error && (
@@ -52,7 +54,7 @@ export default function RegisterPage() {
 
         <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
           <div>
-            <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">Full Name</label>
+            <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">{t('auth.nameLabel')}</label>
             <div className="relative">
               <User className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
               <input
@@ -67,7 +69,7 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">Email Address</label>
+            <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">{t('auth.emailLabel')}</label>
             <div className="relative">
               <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
               <input
@@ -82,7 +84,7 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">Mobile Phone (for SMS Token Alerts)</label>
+            <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">{t('auth.phoneLabel')}</label>
             <div className="relative">
               <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
               <input
@@ -97,7 +99,7 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">Password</label>
+            <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">{t('auth.passwordLabel')}</label>
             <div className="relative">
               <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
               <input
@@ -113,17 +115,18 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">Account Role</label>
+            <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">{t('auth.roleLabel')}</label>
             <select
               value={formData.role}
               onChange={(e) => setFormData({ ...formData, role: e.target.value })}
               className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-500"
             >
-              <option value="patient">Patient</option>
-              <option value="doctor">Doctor</option>
-              <option value="receptionist">Receptionist / Hospital Staff</option>
-              <option value="blood_bank_officer">Blood Bank Officer</option>
-              <option value="admin">Hospital Admin</option>
+              <option value="patient">{t('auth.patientRole')}</option>
+              <option value="doctor">{t('auth.doctorRole')}</option>
+              <option value="blood_bank_officer">{t('nav.roleBloodOfficer')}</option>
+              <option value="admin">{t('nav.roleAdmin')}</option>
+              <option value="hospital">Hospital Command / Operations</option>
+              <option value="receptionist">{t('nav.roleReceptionist')}</option>
             </select>
           </div>
 
@@ -132,15 +135,15 @@ export default function RegisterPage() {
             disabled={loading}
             className="w-full py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl shadow-lg shadow-teal-600/30 transition flex items-center justify-center space-x-2 mt-4"
           >
-            <span>{loading ? 'Creating Account...' : 'Register'}</span>
+            <span>{loading ? t('common.loading') : t('auth.registerBtn')}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
 
         <p className="text-center text-xs text-slate-500">
-          Already registered?{' '}
+          {t('auth.haveAccount')}{' '}
           <Link to="/login" className="font-bold text-teal-600 hover:underline">
-            Sign In
+            {t('auth.loginLink')}
           </Link>
         </p>
       </div>

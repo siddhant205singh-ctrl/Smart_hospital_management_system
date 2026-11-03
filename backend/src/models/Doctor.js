@@ -11,8 +11,11 @@ const doctorSchema = new mongoose.Schema({
     year: { type: Number, required: true }
   }],
   subSpecialties: [String],
-  medicalCouncilRegNumber: { type: String, trim: true },
+  medicalCouncilRegNumber: { type: String, trim: true, index: true },
+  councilState: { type: String, trim: true, default: 'Delhi Medical Council' },
   isVerified: { type: Boolean, default: false },
+  approvalStatus: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+  verificationDocuments: [{ type: mongoose.Schema.Types.ObjectId, ref: 'VerificationDocument' }],
   verifiedByAdminId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   verifiedAt: { type: Date },
   bio: { type: String, default: '' },

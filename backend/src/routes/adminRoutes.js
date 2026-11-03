@@ -4,8 +4,8 @@ const { getHospitalOverview, getAnalytics, createWalkInToken } = require('../con
 const { protect } = require('../middleware/authMiddleware');
 const { authorize } = require('../middleware/roleMiddleware');
 
-router.get('/overview', protect, authorize('admin', 'receptionist'), getHospitalOverview);
-router.get('/analytics', protect, authorize('admin', 'receptionist'), getAnalytics);
-router.post('/walk-in', protect, authorize('admin', 'receptionist'), createWalkInToken);
+router.get('/overview', protect, authorize('admin', 'receptionist', 'hospital'), getHospitalOverview);
+router.get('/analytics', protect, authorize('admin', 'receptionist', 'hospital'), getAnalytics);
+router.post('/walk-in', protect, authorize('admin', 'receptionist', 'hospital'), createWalkInToken);
 
 module.exports = router;

@@ -1,8 +1,11 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Activity, Heart, Shield, PhoneCall, Droplet } from 'lucide-react';
+import { Activity, PhoneCall, Droplet } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export default function Footer() {
+  const { t } = useTranslation();
+
   return (
     <footer className="border-t border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 text-slate-600 dark:text-slate-400 text-xs">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -16,57 +19,57 @@ export default function Footer() {
               <span className="text-base font-bold text-slate-900 dark:text-white">SmartCare</span>
             </div>
             <p className="text-slate-500 leading-relaxed text-xs">
-              Next-generation smart hospital management system designed to eliminate patient waiting queues and empower voluntary blood donors.
+              {t('footer.mission')}
             </p>
             <div className="flex items-center space-x-1.5 text-rose-600 font-medium">
               <Droplet className="w-4 h-4 fill-rose-500" />
-              <span>LifeShare Voluntary Donor Network</span>
+              <span>{t('footer.lifeShareNetwork')}</span>
             </div>
           </div>
 
           {/* Col 2: Hospital Partners */}
           <div>
-            <h4 className="font-semibold text-slate-900 dark:text-white mb-3 text-sm">Connected Hospitals</h4>
+            <h4 className="font-semibold text-slate-900 dark:text-white mb-3 text-sm">{t('footer.connectedHospitals')}</h4>
             <ul className="space-y-2">
               <li>Apollo Indraprastha Medical Center (New Delhi)</li>
               <li>Fortis Memorial Research Institute (Gurugram)</li>
               <li>Max Super Speciality Hospital (Saket, New Delhi)</li>
-              <li className="text-teal-600 dark:text-teal-400 font-medium">+ Seamless cross-network referrals</li>
+              <li className="text-teal-600 dark:text-teal-400 font-medium">{t('footer.seamlessReferrals')}</li>
             </ul>
           </div>
 
           {/* Col 3: Emergency & Helplines */}
           <div>
-            <h4 className="font-semibold text-slate-900 dark:text-white mb-3 text-sm">Emergency Hotlines</h4>
+            <h4 className="font-semibold text-slate-900 dark:text-white mb-3 text-sm">{t('footer.emergencyHotlines')}</h4>
             <div className="space-y-2">
               <div className="flex items-center space-x-2 text-rose-600 font-bold">
                 <PhoneCall className="w-4 h-4" />
-                <span>National Emergency: 108 / 112</span>
+                <span>{t('footer.nationalEmergency')}</span>
               </div>
-              <p>Apollo Trauma Care: 1066</p>
-              <p>Fortis Emergency: 105010</p>
-              <p>Max Cardiac ER: 011-40554055</p>
+              <p>{t('footer.apolloTrauma')}</p>
+              <p>{t('footer.fortisEmergency')}</p>
+              <p>{t('footer.maxCardiac')}</p>
             </div>
           </div>
 
           {/* Col 4: Regulatory & Ethics */}
           <div>
-            <h4 className="font-semibold text-slate-900 dark:text-white mb-3 text-sm">Ethics & Compliance</h4>
+            <h4 className="font-semibold text-slate-900 dark:text-white mb-3 text-sm">{t('footer.ethicsTitle')}</h4>
             <p className="text-slate-500 leading-relaxed text-[11px]">
-              LifeShare blood donation is strictly 100% voluntary and unpaid under National Blood Transfusion Council (NBTC) guidelines. Recognition badges and thank-you certificates carry zero monetary value. Donor Family Fast-Track waives administrative handling fees without ever overriding clinical urgency.
+              {t('footer.ethicsDesc')}
             </p>
             <Link to="/legal-policy" className="mt-2 inline-block text-teal-600 hover:underline font-medium">
-              Read LifeShare Legal & Policy Charter →
+              {t('footer.readCharter')}
             </Link>
           </div>
         </div>
 
         <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-400">
-          <p>© 2026 SmartCare Healthcare Network. All rights reserved.</p>
+          <p>{t('footer.copyright')}</p>
           <div className="flex space-x-4 mt-2 sm:mt-0">
-            <Link to="/legal-policy" className="hover:text-teal-600">Privacy & Consent</Link>
-            <Link to="/legal-policy" className="hover:text-teal-600">Terms of Care</Link>
-            <Link to="/legal-policy" className="hover:text-teal-600">NBTC Compliance</Link>
+            <Link to="/legal-policy" className="hover:text-teal-600">{t('footer.privacy')}</Link>
+            <Link to="/legal-policy" className="hover:text-teal-600">{t('footer.terms')}</Link>
+            <Link to="/legal-policy" className="hover:text-teal-600">{t('footer.nbtc')}</Link>
           </div>
         </div>
       </div>

@@ -19,6 +19,14 @@ const protect = async (req, res, next) => {
     if (!user) {
       return res.status(401).json({ error: 'User no longer exists' });
     }
+
+    if (user.status && user.status !== 'active') {
+      return res.status(403).json({
+        error: `Account is currently ${user.status.replace(/_/g, ' ')}. Please complete verification or await admin approval.`,
+        status: user.status
+      });
+    }
+
     req.user = user;
     next();
   } catch (err) {
