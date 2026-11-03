@@ -35,7 +35,7 @@ exports.getPatientTimeline = async (req, res, next) => {
         });
 
         return res.status(403).json({
-          error: 'Access Denied: Patient has not granted consent to view medical records. Please ask patient to approve consent in their SmartCare portal.'
+          error: 'Access Denied: Patient has not granted consent to view medical records. Please ask patient to approve consent in their HealthMS portal.'
         });
       }
     }
@@ -118,7 +118,7 @@ exports.getRecordSummary = async (req, res, next) => {
     if (!record) return res.status(404).json({ error: 'Record not found' });
 
     // Fallback or plain language explanation
-    const summary = record.aiSummary || `This medical record (${record.title}) was documented on ${new Date(record.date).toLocaleDateString()}. All vital parameters and observations are stored securely in your SmartCare health timeline.`;
+    const summary = record.aiSummary || `This medical record (${record.title}) was documented on ${new Date(record.date).toLocaleDateString()}. All vital parameters and observations are stored securely in your HealthMS health timeline.`;
 
     res.json({ success: true, summary });
   } catch (error) {

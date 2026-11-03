@@ -173,7 +173,7 @@ export default function HealthTimelinePage() {
                   <div className="p-3 bg-teal-50/70 dark:bg-teal-950/30 rounded-2xl border border-teal-200 dark:border-teal-800 text-xs text-teal-900 dark:text-teal-200">
                     <div className="flex items-center space-x-1.5 font-bold mb-1 text-teal-800 dark:text-teal-300">
                       <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                      <span>SmartCare Plain-Language Clinical Summary:</span>
+                      <span>HealthMS Plain-Language Clinical Summary:</span>
                     </div>
                     <p className="leading-relaxed">{r.aiSummary}</p>
                   </div>
@@ -261,7 +261,7 @@ export default function HealthTimelinePage() {
                   rows={2}
                   value={newRecord.aiSummary}
                   onChange={(e) => setNewRecord({ ...newRecord, aiSummary: e.target.value })}
-                  placeholder="SmartCare automatically generates clinical summaries..."
+                  placeholder="HealthMS automatically generates clinical summaries..."
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
                 />
               </div>

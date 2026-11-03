@@ -29,7 +29,7 @@ export default function FullAssistantPage() {
   const [messages, setMessages] = useState([
     {
       sender: 'assistant',
-      text: "Welcome to **SmartCare Clinical Concierge**!\n\nI analyze your **longitudinal medical history, documented allergies, chronic conditions, and current symptoms** to provide personalized clinical triage and doctor recommendations.\n\n*Notice: I provide health triage and navigation, not a definitive medical diagnosis.*",
+      text: "Welcome to **HealthMS Clinical Concierge**!\n\nI analyze your **longitudinal medical history, documented allergies, chronic conditions, and current symptoms** to provide personalized clinical triage and doctor recommendations.\n\n*Notice: I provide health triage and navigation, not a definitive medical diagnosis.*",
       isEmergency: false
     }
   ]);
@@ -142,7 +142,7 @@ export default function FullAssistantPage() {
           </div>
           <div>
             <h1 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center space-x-2">
-              <span>SmartCare Clinical Concierge</span>
+              <span>HealthMS Clinical Concierge</span>
               <span className="text-[10px] bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300 px-2 py-0.5 rounded-full font-bold">
                 Customized AI Doctor
               </span>

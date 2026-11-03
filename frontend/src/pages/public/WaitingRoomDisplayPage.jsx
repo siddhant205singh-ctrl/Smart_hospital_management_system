@@ -64,7 +64,7 @@ export default function WaitingRoomDisplayPage() {
             <Activity className="w-7 h-7" />
           </div>
           <div>
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">SmartCare OPD Display</h1>
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">HealthMS OPD Display</h1>
             <p className="text-xs text-teal-400 font-semibold">Apollo Indraprastha Medical Center • Live Queue Hub</p>
           </div>
         </div>
@@ -141,7 +141,7 @@ export default function WaitingRoomDisplayPage() {
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center justify-between text-xs text-slate-400">
         <span className="flex items-center space-x-2 text-teal-300 font-bold">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-          <span>SmartCare Predictive Arrival Engine</span>
+          <span>HealthMS Predictive Arrival Engine</span>
         </span>
         <span className="hidden sm:inline">Please arrive 15 minutes before your estimated turn time. For assistance, visit the Help Desk.</span>
         <span className="font-mono text-slate-300">Display Station #01</span>

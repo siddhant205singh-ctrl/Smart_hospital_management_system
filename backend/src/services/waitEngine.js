@@ -81,7 +81,7 @@ const recalculateDoctorQueue = async (doctorId, io = null) => {
 
       const patient = appt.patientId;
       if (patient) {
-        const leaveMessage = `SmartCare Alert: Your token #${appt.tokenNumber} with Dr. ${doctor.userId?.name || 'Doctor'} is estimated at ${estimatedTurn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}. With ${travelTime}m travel and ${checkInBuffer}m buffer, please LEAVE NOW to arrive smoothly.`;
+        const leaveMessage = `HealthMS Alert: Your token #${appt.tokenNumber} with Dr. ${doctor.userId?.name || 'Doctor'} is estimated at ${estimatedTurn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}. With ${travelTime}m travel and ${checkInBuffer}m buffer, please LEAVE NOW to arrive smoothly.`;
 
         await sendNotification({
           userId: patient._id,

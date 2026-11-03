@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-// SmartCare LifeShare: Voluntary Unpaid Blood Donor Model
+// HealthMS LifeShare: Voluntary Unpaid Blood Donor Model
 // Compliance: Blood is never sold or purchased. All records affirm voluntary unpaid donation.
 const donorSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },

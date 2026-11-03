@@ -450,7 +450,7 @@ export default function DoctorDirectory() {
                     onChange={(e) => setTravelTime(Number(e.target.value))}
                     className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
                   />
-                  <span className="text-[10px] text-slate-400">Used by SmartCare to calculate your "Leave Now" alert.</span>
+                  <span className="text-[10px] text-slate-400">Used by HealthMS to calculate your "Leave Now" alert.</span>
                 </div>
 
                 {/* Symptoms */}

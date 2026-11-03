@@ -219,7 +219,7 @@ export default function PatientDashboard() {
               </span>
             </div>
             <h3 className="font-bold text-sm leading-snug">
-              SmartCare Clinical AI Assistant
+              HealthMS Clinical AI Assistant
             </h3>
             <p className="text-[11px] text-teal-100 mt-1">
               Evaluates your medical history, allergies & current symptoms to guide specialist care.

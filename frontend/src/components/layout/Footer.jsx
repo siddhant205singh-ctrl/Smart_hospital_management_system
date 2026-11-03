@@ -16,7 +16,7 @@ export default function Footer() {
               <div className="w-8 h-8 rounded-lg bg-teal-600 flex items-center justify-center text-white">
                 <Activity className="w-5 h-5" />
               </div>
-              <span className="text-base font-bold text-slate-900 dark:text-white">SmartCare</span>
+              <span className="text-base font-bold text-slate-900 dark:text-white">HealthMS</span>
             </div>
             <p className="text-slate-500 leading-relaxed text-xs">
               {t('footer.mission')}

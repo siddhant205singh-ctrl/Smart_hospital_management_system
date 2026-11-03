@@ -89,7 +89,7 @@ app.use('/api', lifeShareRoutes);
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
-    system: 'SmartCare Smart Hospital Management System',
+    system: 'HealthMS Smart Hospital Management System',
     timestamp: new Date().toISOString()
   });
 });

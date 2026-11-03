@@ -78,7 +78,7 @@ const sendNotification = async ({
     try {
       results.sms = await twilioClient.messages.create({
         to: userPhone,
-        body: `[SmartCare] ${title}: ${message}`
+        body: `[HealthMS] ${title}: ${message}`
       });
     } catch (err) {
       console.error('[NotificationService] Twilio SMS error:', err.message);
@@ -90,14 +90,14 @@ const sendNotification = async ({
     try {
       if (transporter && process.env.SMTP_USER) {
         await transporter.sendMail({
-          from: '"SmartCare Health System" <no-reply@smartcare.health>',
+          from: '"HealthMS Health System" <no-reply@healthms.health>',
           to: userEmail,
           subject: title,
           text: message,
           html: `<div style="font-family: sans-serif; padding: 20px; color: #1e293b;">
-            <h2 style="color: #0d9488;">SmartCare Alert</h2>
+            <h2 style="color: #0d9488;">HealthMS Alert</h2>
             <p style="font-size: 16px;">${message}</p>
-            <p style="color: #64748b; font-size: 12px; margin-top: 24px;">This is an automated healthcare notification from SmartCare.</p>
+            <p style="color: #64748b; font-size: 12px; margin-top: 24px;">This is an automated healthcare notification from HealthMS.</p>
           </div>`
         });
       } else {

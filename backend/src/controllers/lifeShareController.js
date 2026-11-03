@@ -177,7 +177,7 @@ exports.getDonorCertificate = async (req, res, next) => {
       totalDonations: donor.totalDonations,
       livesImpacted: donor.livesImpacted,
       issuedDate: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }),
-      accreditationBody: 'SmartCare National Voluntary Blood Donation Network',
+      accreditationBody: 'HealthMS National Voluntary Blood Donation Network',
       complianceNotice: 'Issued in recognition of voluntary, unpaid blood donations under the National Blood Transfusion Council (NBTC) charter. Non-monetary commendation.'
     };
 
@@ -273,7 +273,7 @@ exports.recordVerifiedDonation = async (req, res, next) => {
       type: 'blood_donation',
       title: `Voluntary Blood Donation (${donation.component})`,
       date: new Date(),
-      aiSummary: `Verified voluntary blood donation of ${donation.volumeMl}ml ${donation.component} at SmartCare Blood Bank. Unit #${unitNumber}. Up to 3 lives saved!`,
+      aiSummary: `Verified voluntary blood donation of ${donation.volumeMl}ml ${donation.component} at HealthMS Blood Bank. Unit #${unitNumber}. Up to 3 lives saved!`,
       metadata: {
         bloodDonation: {
           donationId,
@@ -585,7 +585,7 @@ exports.createBloodRequest = async (req, res, next) => {
         unitsNeeded: deficit > 0 ? deficit : unitsNum,
         urgency: clinicalUrgency === 'critical_emergency' ? 'Critical' : 'High',
         matchingMode: clinicalUrgency === 'critical_emergency' ? 'include_compatible' : 'exact_match',
-        contactDesk: `${hospitalDoc?.name || 'SmartCare'} Blood Bank Emergency Desk`,
+        contactDesk: `${hospitalDoc?.name || 'HealthMS'} Blood Bank Emergency Desk`,
         contactPhone: hospitalDoc?.emergencyPhone || hospitalDoc?.phone || req.user.phone || '+91-11-26925858',
         radiusKm: 25,
         expiresAt: new Date(Date.now() + 24 * 3600 * 1000),
@@ -595,7 +595,7 @@ exports.createBloodRequest = async (req, res, next) => {
       });
 
       // Dispatch in-app notifications to matched voluntary donors
-      const hospitalName = hospitalDoc?.name || 'SmartCare Hospital';
+      const hospitalName = hospitalDoc?.name || 'HealthMS Hospital';
       await Promise.all(
         matchedUsers.map(u => {
           const isHi = u.preferredLanguage === 'hi';

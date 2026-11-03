@@ -224,7 +224,7 @@ export default function AdminDashboard() {
               <h3 className="font-bold text-base text-slate-900 dark:text-white">
                 Waiting Time Reduction Impact (Minutes)
               </h3>
-              <p className="text-xs text-slate-400">SmartCare Dynamic Engine vs. Traditional Hospital Walk-in</p>
+              <p className="text-xs text-slate-400">HealthMS Dynamic Engine vs. Traditional Hospital Walk-in</p>
             </div>
             <span className="text-xs font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-2.5 py-1 rounded-xl">
               -72% Wait Time
@@ -240,7 +240,7 @@ export default function AdminDashboard() {
                 <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', fontSize: '11px', color: '#fff' }} />
                 <Legend wrapperStyle={{ fontSize: '11px' }} />
                 <Line type="monotone" dataKey="traditionalWait" stroke="#f43f5e" name="Traditional Wait (mins)" strokeWidth={2} />
-                <Line type="monotone" dataKey="smartCareWait" stroke="#0d9488" name="SmartCare Wait (mins)" strokeWidth={3} />
+                <Line type="monotone" dataKey="smartCareWait" stroke="#0d9488" name="HealthMS Wait (mins)" strokeWidth={3} />
               </LineChart>
             </ResponsiveContainer>
           </div>

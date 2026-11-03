@@ -62,7 +62,7 @@
     "badge": "Smart Hospital Management & Real-time Queue",
     "title": "Smart Hospital Management System.",
     "titleHighlight": "Smarter Healthcare.",
-    "subtitle": "SmartCare predicts your exact doctor consultation turn, syncs real-time queue tokens across multiple hospitals, and recognizes voluntary blood donors with priority family care.",
+    "subtitle": "HealthMS predicts your exact doctor consultation turn, syncs real-time queue tokens across multiple hospitals, and recognizes voluntary blood donors with priority family care.",
     "ctaBook": "Find Doctors & Book",
     "ctaQueue": "Track Live Queue",
     "ctaDonor": "Join LifeShare",
@@ -204,7 +204,7 @@
   "patient": {
     "commandPortal": "Patient Command Portal",
     "welcome": "Welcome back,",
-    "subtext": "SmartCare has estimated your wait times and travel window so you don't spend unnecessary hours in hospital lounges.",
+    "subtext": "HealthMS has estimated your wait times and travel window so you don't spend unnecessary hours in hospital lounges.",
     "emergencyIntake": "Emergency Intake",
     "joinLifeShare": "Join LifeShare Network",
     "shortageAlert": "Matching Blood Shortage Emergency Alerts",
@@ -232,7 +232,7 @@
     "ethicsTitle": "Ethics & Compliance",
     "ethicsDesc": "LifeShare blood donation is strictly 100% voluntary and unpaid under National Blood Transfusion Council (NBTC) guidelines. Recognition badges and thank-you certificates carry zero monetary value. Donor Family Fast-Track waives administrative handling fees without ever overriding clinical urgency.",
     "readCharter": "Read LifeShare Legal & Policy Charter →",
-    "copyright": "© 2026 SmartCare Healthcare Network. All rights reserved.",
+    "copyright": "© 2026 HealthMS Healthcare Network. All rights reserved.",
     "privacy": "Privacy & Consent",
     "terms": "Terms of Care",
     "nbtc": "NBTC Compliance"
@@ -253,9 +253,9 @@
     "joinQueue": "Join Emergency Triage Queue"
   },
   "auth": {
-    "signInTitle": "Sign In to SmartCare",
+    "signInTitle": "Sign In to HealthMS",
     "signInSubtitle": "Enter your credentials to access your hospital portal",
-    "registerTitle": "Create SmartCare Account",
+    "registerTitle": "Create HealthMS Account",
     "registerSubtitle": "Join the network for zero-wait appointments and LifeShare care",
     "emailLabel": "Email Address",
     "passwordLabel": "Password",

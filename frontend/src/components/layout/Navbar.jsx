@@ -83,7 +83,7 @@ export default function Navbar() {
           <div>
             <div className="flex items-center space-x-1 sm:space-x-1.5">
               <span className="text-lg sm:text-xl font-bold tracking-tight bg-gradient-to-r from-teal-700 to-teal-500 dark:from-teal-400 dark:to-cyan-400 bg-clip-text text-transparent">
-                SmartCare
+                HealthMS
               </span>
               <span className="text-[9px] sm:text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 bg-teal-50 text-teal-700 dark:bg-teal-950 dark:text-teal-300 rounded border border-teal-200 dark:border-teal-800 hidden xs:inline-block">
                 AI + Queue

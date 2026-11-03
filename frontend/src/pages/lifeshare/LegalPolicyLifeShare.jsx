@@ -26,7 +26,7 @@ export default function LegalPolicyLifeShare() {
             <span>1. 100% Voluntary, Unpaid Blood Donation</span>
           </h2>
           <p>
-            SmartCare strictly adheres to national and international healthcare statutes prohibiting the commercialization of human blood and blood components. Under no circumstances does SmartCare or partner hospitals offer monetary remuneration, cash equivalents, or purchase options to blood donors.
+            HealthMS strictly adheres to national and international healthcare statutes prohibiting the commercialization of human blood and blood components. Under no circumstances does HealthMS or partner hospitals offer monetary remuneration, cash equivalents, or purchase options to blood donors.
           </p>
         </div>
 
@@ -37,7 +37,7 @@ export default function LegalPolicyLifeShare() {
             <span>2. Non-Monetary Milestone Recognition & Official Certificates</span>
           </h2>
           <p>
-            SmartCare recognizes donors solely through milestone badges, thank-you certificates, and Health Timeline records. These honors carry <strong>strictly zero monetary value, financial credit, or outpatient discounts</strong>. Donations are 100% altruistic, voluntary, and unpaid in compliance with National Blood Transfusion Council (NBTC) guidelines.
+            HealthMS recognizes donors solely through milestone badges, thank-you certificates, and Health Timeline records. These honors carry <strong>strictly zero monetary value, financial credit, or outpatient discounts</strong>. Donations are 100% altruistic, voluntary, and unpaid in compliance with National Blood Transfusion Council (NBTC) guidelines.
           </p>
         </div>
 
@@ -59,8 +59,8 @@ export default function LegalPolicyLifeShare() {
             <span>Statutory Notice for Hospital Administrators</span>
           </div>
           <p className="text-[11px]">
-            {/* TODO: SmartCare LifeShare policy must be reviewed against National Blood Transfusion Council (NBTC) / Drugs & Cosmetics Act rules before production deployment in hospitals. */}
-            Notice: SmartCare LifeShare policy must be periodically reviewed against National Blood Transfusion Council (NBTC) and state blood transfusion council rules before deployment in new clinical jurisdictions.
+            {/* HealthMS LifeShare policy must be reviewed against National Blood Transfusion Council (NBTC) / Drugs & Cosmetics Act rules before production deployment in hospitals. */}
+            Notice: HealthMS LifeShare policy must be periodically reviewed against National Blood Transfusion Council (NBTC) and state blood transfusion council rules before deployment in new clinical jurisdictions.
           </p>
         </div>
       </div>

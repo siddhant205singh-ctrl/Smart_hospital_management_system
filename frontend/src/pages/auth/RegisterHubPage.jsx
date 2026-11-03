@@ -79,7 +79,7 @@ export default function RegisterHubPage() {
           <span>Role-Based Verified Access Architecture</span>
         </div>
         <h1 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tight">
-          Join SmartCare Healthcare Network
+          Join HealthMS Healthcare Network
         </h1>
         <p className="text-sm text-slate-500">
           Select your registration type below. Professional roles undergo cryptographic document verification and admin approval before activation.

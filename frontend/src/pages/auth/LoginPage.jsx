@@ -143,7 +143,7 @@ export default function LoginPage() {
             <Activity className="w-7 h-7" />
           </div>
           <h2 className="mt-4 text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-            {t('auth.signInTitle') || 'Sign In to SmartCare'}
+            {t('auth.signInTitle') || 'Sign In to HealthMS'}
           </h2>
           <p className="mt-1 text-xs text-slate-500">
             {t('auth.signInSubtitle') || 'Access healthcare portal with verified credentials'}
@@ -334,7 +334,7 @@ export default function LoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@smartcare.hospital"
+                placeholder="you@healthms.hospital"
                 className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-500"
               />
             </div>

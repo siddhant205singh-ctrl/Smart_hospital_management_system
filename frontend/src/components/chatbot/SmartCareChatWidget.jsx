@@ -34,7 +34,7 @@ export default function SmartCareChatWidget() {
   const [messages, setMessages] = useState([
     {
       sender: 'assistant',
-      text: "Hello! I am your **SmartCare Clinical Assistant**.\n\nI provide **personalized answers** based on your **past medical records, known allergies, chronic conditions, and current symptoms**.\n\n*Notice: I provide clinical navigation and guidance, not a definitive diagnosis.*",
+      text: "Hello! I am your **HealthMS Clinical Assistant**.\n\nI provide **personalized answers** based on your **past medical records, known allergies, chronic conditions, and current symptoms**.\n\n*Notice: I provide clinical navigation and guidance, not a definitive diagnosis.*",
       isEmergency: false
     }
   ]);
@@ -158,7 +158,7 @@ export default function SmartCareChatWidget() {
             <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-amber-300 animate-pulse" />
             <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-white"></span>
           </div>
-          <span className="text-xs font-bold tracking-wide">SmartCare AI</span>
+          <span className="text-xs font-bold tracking-wide">HealthMS AI</span>
           <span className="hidden sm:inline text-[10px] text-teal-100 bg-white/20 px-2 py-0.5 rounded-full font-medium">
             Personalized Clinical Bot
           </span>
@@ -176,7 +176,7 @@ export default function SmartCareChatWidget() {
               </div>
               <div>
                 <h3 className="font-bold text-xs flex items-center space-x-1.5">
-                  <span>SmartCare Clinical Assistant</span>
+                  <span>HealthMS Clinical Assistant</span>
                   <span className="text-[9px] bg-amber-400/30 text-amber-200 px-1.5 py-0.2 rounded font-semibold border border-amber-400/40">
                     Customized for Patient
                   </span>

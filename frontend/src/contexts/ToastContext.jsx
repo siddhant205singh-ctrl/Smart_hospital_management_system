@@ -66,7 +66,7 @@ export function ToastProvider({ children }) {
         detectedType === 'success' ? 'Action Completed' :
         detectedType === 'error' ? 'Notice' :
         detectedType === 'warning' ? 'Attention' :
-        'SmartCare Notification'
+        'HealthMS Notification'
       ),
       duration: options.duration || 4500
     };

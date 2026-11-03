@@ -35,7 +35,7 @@ exports.markAsRead = async (req, res, next) => {
 exports.sendTestSms = async (req, res, next) => {
   try {
     const { phone, tokenNumber, patientsAhead, estWaitMinutes } = req.body;
-    const body = `SmartCare Queue Alert: Your token is #${tokenNumber || 12}. ${patientsAhead || 3} patients ahead. Est. waiting time is ${estWaitMinutes || 25} minutes.`;
+    const body = `HealthMS Queue Alert: Your token is #${tokenNumber || 12}. ${patientsAhead || 3} patients ahead. Est. waiting time is ${estWaitMinutes || 25} minutes.`;
 
     const smsResult = await twilioClient.messages.create({
       to: phone || '+919876543210',

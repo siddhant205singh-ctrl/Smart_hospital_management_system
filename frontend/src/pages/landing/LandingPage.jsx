@@ -261,7 +261,7 @@ export default function LandingPage() {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-2xl mx-auto space-y-2 mb-12">
           <span className="text-xs font-bold uppercase tracking-widest text-teal-600 dark:text-teal-400">
-            SmartCare Technology
+            HealthMS Technology
           </span>
           <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white">
             {t('landing.featuresTitle')}

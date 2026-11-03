@@ -763,7 +763,7 @@ export default function RegisterWizardPage() {
                 className="rounded text-teal-600 focus:ring-teal-500 w-4 h-4 mt-0.5"
               />
               <label htmlFor="consentTerms">
-                I agree to the SmartCare <a href="/terms" className="text-teal-600 underline">Terms of Service</a> and <a href="/privacy" className="text-teal-600 underline">Privacy Policy</a>.
+                I agree to the HealthMS <a href="/terms" className="text-teal-600 underline">Terms of Service</a> and <a href="/privacy" className="text-teal-600 underline">Privacy Policy</a>.
               </label>
             </div>
 

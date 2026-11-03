@@ -14,7 +14,7 @@ export default function SuperAdminApprovalsPage() {
           </div>
           <h1 className="text-2xl font-black tracking-tight">Hospital Facility Verification Desk</h1>
           <p className="text-xs text-purple-200">
-            Review hospital registration licenses and approve new Hospital Administrators to connect their medical center into the SmartCare network.
+            Review hospital registration licenses and approve new Hospital Administrators to connect their medical center into the HealthMS network.
           </p>
         </div>
 

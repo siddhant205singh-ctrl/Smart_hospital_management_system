@@ -223,7 +223,7 @@ export default function UserProfilePage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `SmartCare_Profile_${profile.name.replace(/\s+/g, '_')}.json`;
+      a.download = `HealthMS_Profile_${profile.name.replace(/\s+/g, '_')}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -1158,7 +1158,7 @@ export default function UserProfilePage() {
             <div>
               <h3 className="font-bold text-base text-slate-900 dark:text-white">Notification & Alert Channels</h3>
               <p className="text-xs text-slate-500">
-                Control how and where SmartCare alerts reach you across In-App, Email, and SMS.
+                Control how and where HealthMS alerts reach you across In-App, Email, and SMS.
               </p>
             </div>
 
@@ -1657,7 +1657,7 @@ export default function UserProfilePage() {
               <strong className="block text-slate-700 dark:text-slate-300 font-bold mb-0.5">
                 Clinical Data Protection & Audit Policy
               </strong>
-              Medical records stored in SmartCare and summarized by clinical AI are handled strictly for clinical workflow support. Reports marked as private remain concealed even under emergency break-glass protocols. Every emergency view triggers a signed entry in your Access Log.
+              Medical records stored in HealthMS and summarized by clinical AI are handled strictly for clinical workflow support. Reports marked as private remain concealed even under emergency break-glass protocols. Every emergency view triggers a signed entry in your Access Log.
             </div>
           </div>
         </div>

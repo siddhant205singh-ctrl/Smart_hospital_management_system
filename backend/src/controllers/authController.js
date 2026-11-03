@@ -14,7 +14,7 @@ const {
 } = require('../utils/tokenUtils');
 const { generateAndDispatchOtp, verifyOtpCode } = require('../utils/otpUtils');
 const { validatePasswordPolicy } = require('../utils/passwordPolicy');
-const { recordFailedLogin, resetFailedLogins } = require('../middleware/lockoutMiddleware');
+const { recordFailedLogin, clearFailedLogin: resetFailedLogins } = require('../middleware/lockoutMiddleware');
 const { logAudit } = require('../middleware/auditMiddleware');
 const { sendWelcomeEmail, sendApplicationSubmittedEmail } = require('../services/emailService');
 
@@ -634,7 +634,7 @@ exports.verifyEmail = async (req, res, next) => {
         return res.json({
           success: true,
           status: 'active',
-          message: 'Email is already verified! Welcome to SmartCare.',
+          message: 'Email is already verified! Welcome to HealthMS.',
           user: userPayload,
           accessToken,
           refreshToken
@@ -711,7 +711,7 @@ exports.verifyEmail = async (req, res, next) => {
       return res.json({
         success: true,
         status: 'active',
-        message: 'Email verified successfully! Welcome to SmartCare.',
+        message: 'Email verified successfully! Welcome to HealthMS.',
         user: userPayload,
         accessToken,
         refreshToken

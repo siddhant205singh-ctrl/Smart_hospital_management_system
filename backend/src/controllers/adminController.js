@@ -130,7 +130,7 @@ exports.createWalkInToken = async (req, res, next) => {
       user = await User.create({
         name: patientName,
         phone,
-        email: `walkin_${Date.now()}@smartcare.hospital`,
+        email: `walkin_${Date.now()}@healthms.hospital`,
         password: 'TemporaryPassword123!',
         role: 'patient'
       });

@@ -328,7 +328,7 @@ export default function AccountStatusPage() {
                   </form>
                 ) : (
                   <p className="text-[11px] text-rose-600 font-semibold">
-                    Maximum resubmission limit reached. Please contact platform administration directly at admin@smartcare.hospital.
+                    Maximum resubmission limit reached. Please contact platform administration directly at admin@healthms.hospital.
                   </p>
                 )}
               </div>

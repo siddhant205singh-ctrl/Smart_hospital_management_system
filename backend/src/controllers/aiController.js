@@ -182,7 +182,7 @@ exports.chatWithAssistant = async (req, res, next) => {
         }).populate('doctorId').populate('hospitalId');
 
         if (nextAppt) {
-          reply = `You have an upcoming appointment on **${nextAppt.date}** at **${nextAppt.timeSlot}** with Token **#${nextAppt.tokenNumber}** (${nextAppt.tokenCode}) at **${nextAppt.hospitalId?.name || 'SmartCare Hospital'}**. Current status: **${nextAppt.status}**.`;
+          reply = `You have an upcoming appointment on **${nextAppt.date}** at **${nextAppt.timeSlot}** with Token **#${nextAppt.tokenNumber}** (${nextAppt.tokenCode}) at **${nextAppt.hospitalId?.name || 'HealthMS Hospital'}**. Current status: **${nextAppt.status}**.`;
           toolResult = { type: 'appointment', data: nextAppt };
         } else {
           reply = "You don't have any upcoming appointments scheduled right now. Would you like me to help you find an available doctor?";
@@ -191,7 +191,7 @@ exports.chatWithAssistant = async (req, res, next) => {
         reply = "Please sign in to view your upcoming appointments and live queue token tracking.";
       }
     } else if (lower.includes('queue') || lower.includes('waiting time') || lower.includes('token position')) {
-      reply = "In SmartCare, your queue position is updated in real time using actual doctor consultation completion times (Tavg rolling calculation) and traffic-aware leave-now arrival alerts.";
+      reply = "In HealthMS, your queue position is updated in real time using actual doctor consultation completion times (Tavg rolling calculation) and traffic-aware leave-now arrival alerts.";
       toolResult = { type: 'queue_info' };
     } else if (lower.includes('blood') && (lower.includes('available') || lower.includes('stock') || lower.includes('inventory'))) {
       const available = await BloodUnit.aggregate([
@@ -199,7 +199,7 @@ exports.chatWithAssistant = async (req, res, next) => {
         { $group: { _id: '$bloodGroup', count: { $sum: 1 } } }
       ]);
       const summaryList = available.map(a => `${a._id}: ${a.count} units`).join(', ');
-      reply = `Here is the current live blood availability across SmartCare Network Blood Banks:\n\n${summaryList || 'Units are being updated.'}\n\nAll units are voluntary, unpaid donations screened under NBTC guidelines.`;
+      reply = `Here is the current live blood availability across HealthMS Network Blood Banks:\n\n${summaryList || 'Units are being updated.'}\n\nAll units are voluntary, unpaid donations screened under NBTC guidelines.`;
       toolResult = { type: 'blood_stock', data: available };
     } else if (lower.includes('eligible') && lower.includes('donate')) {
       reply = "To donate voluntary blood: You must be 18–65 years old, weigh at least 45 kg, and maintain a gap of **90 days for men** or **120 days for women** since your last donation. Voluntary donors earn milestone recognition badges, downloadable certificates, and qualify their families for Donor Family Fast-Track blood access!";
@@ -253,7 +253,7 @@ exports.chatWithAssistant = async (req, res, next) => {
         specialty: d.specialty,
         roomNumber: d.roomNumber,
         consultationFee: d.consultationFee,
-        hospitalName: d.hospitalId?.name || 'SmartCare Hospital',
+        hospitalName: d.hospitalId?.name || 'HealthMS Hospital',
         isAvailableToday: d.isAvailableToday
       }));
     } catch (e) {
@@ -263,7 +263,7 @@ exports.chatWithAssistant = async (req, res, next) => {
     // 6. Gemini Clinical AI Generation (with Complete Patient History & Symptoms Prompt)
     if (!reply && process.env.GEMINI_API_KEY) {
       try {
-        let promptContext = `You are "SmartCare Clinical Concierge AI", an empathetic, highly knowledgeable medical assistant for SmartCare Hospital System.
+        let promptContext = `You are "HealthMS Clinical Concierge AI", an empathetic, highly knowledgeable medical assistant for HealthMS Hospital System.
 Your job is to provide personalized healthcare guidance to the patient by strictly taking into account their PAST MEDICAL RECORDS and CURRENT SYMPTOMS.
 
 Patient Profile Dossier:
