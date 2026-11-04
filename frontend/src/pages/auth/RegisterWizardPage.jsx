@@ -31,6 +31,7 @@ export default function RegisterWizardPage() {
   const [loadingHospitals, setLoadingHospitals] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [alreadyActive, setAlreadyActive] = useState(false);
   const [emailWarning, setEmailWarning] = useState('');
 
   // Form Fields
@@ -157,6 +158,7 @@ export default function RegisterWizardPage() {
     }
 
     setSubmitting(true);
+    setAlreadyActive(false);
     try {
       if (role === 'patient') {
         // Patient JSON POST
@@ -228,6 +230,9 @@ export default function RegisterWizardPage() {
     } catch (err) {
       console.error('[Registration Submission Error]', err);
       setErrorMessage(err.response?.data?.error || 'Registration failed. Please check the inputs and retry.');
+      if (err.response?.data?.alreadyActive) {
+        setAlreadyActive(true);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -265,9 +270,19 @@ export default function RegisterWizardPage() {
         </div>
 
         {errorMessage && (
-          <div className="p-3.5 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 rounded-xl text-xs text-rose-700 dark:text-rose-300 flex items-start space-x-2">
-            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-            <span>{errorMessage}</span>
+          <div className="p-3.5 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 rounded-xl text-xs text-rose-700 dark:text-rose-300 flex items-center justify-between">
+            <div className="flex items-start space-x-2">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>{errorMessage}</span>
+            </div>
+            {alreadyActive && (
+              <Link
+                to="/login"
+                className="ml-3 px-3.5 py-1.5 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-lg text-xs shrink-0 transition shadow-sm"
+              >
+                Sign In Now
+              </Link>
+            )}
           </div>
         )}
 

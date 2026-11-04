@@ -78,12 +78,17 @@ exports.registerPatient = async (req, res, next) => {
     let existingUser = await User.findOne({ email: normalizedEmail });
 
     if (existingUser) {
-      // If user already active or pending approval, return generic message to prevent email enumeration
-      if (existingUser.status === 'active' || existingUser.status === 'pending_approval') {
-        return res.status(200).json({
-          success: true,
-          message: 'If your account is eligible, a 6-digit verification code has been dispatched to your email.',
-          email: normalizedEmail
+      if (existingUser.status === 'active') {
+        return res.status(400).json({
+          error: 'An account with this email address already exists and is active. Please sign in directly or reset your password.',
+          alreadyActive: true
+        });
+      }
+
+      if (existingUser.status === 'pending_approval') {
+        return res.status(400).json({
+          error: 'An application with this email address has already been submitted and is currently under administrative review.',
+          alreadyPending: true
         });
       }
 
@@ -778,6 +783,13 @@ exports.resendOtp = async (req, res, next) => {
       return res.json({
         success: true,
         message: 'If an account exists for this email, a new verification code has been dispatched.'
+      });
+    }
+
+    if (purpose === 'verify_email' && user.status === 'active') {
+      return res.status(400).json({
+        error: 'Your email address is already verified and active! You can log in directly.',
+        alreadyActive: true
       });
     }
 

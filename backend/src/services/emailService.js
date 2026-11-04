@@ -2,102 +2,75 @@ const nodemailer = require('nodemailer');
 const emailTemplates = require('../templates/emailTemplates');
 
 let transporter = null;
-let isDevSimulator = false;
-let initPromise = null; // Ensures init runs exactly once and is awaitable
 
-// Initialize Transporter (lazy singleton)
-const initTransporter = () => {
-  if (initPromise) return initPromise;
+// Lazily obtain transporter synchronously whenever needed
+const getTransporter = () => {
+  if (transporter) return transporter;
 
-  initPromise = (async () => {
-    if (process.env.SMTP_SERVICE === 'gmail' || (process.env.GMAIL_USER && process.env.GMAIL_PASS)) {
-      const gmailUser = process.env.SMTP_USER || process.env.GMAIL_USER;
-      const gmailPass = process.env.SMTP_PASS || process.env.GMAIL_PASS;
+  const gmailUser = process.env.SMTP_USER || process.env.GMAIL_USER;
+  const gmailPass = process.env.SMTP_PASS || process.env.GMAIL_PASS;
 
-      if (!gmailUser || !gmailPass) {
-        console.error('[EmailService] ❌ SMTP_USER or SMTP_PASS missing in .env — falling back to console logger.');
-        isDevSimulator = true;
-        return;
-      }
-
-      const t = nodemailer.createTransport({
+  if (process.env.SMTP_SERVICE === 'gmail' || (gmailUser && gmailPass)) {
+    if (gmailUser && gmailPass) {
+      transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: { user: gmailUser, pass: gmailPass }
       });
-
-      try {
-        await t.verify();
-        transporter = t;
-        console.log(`[EmailService] ✅ Gmail SMTP ready — sending as ${gmailUser}`);
-      } catch (verifyErr) {
-        console.error(`[EmailService] ❌ Gmail SMTP verify failed: ${verifyErr.message}`);
-        console.error('[EmailService] ⚠️  Check SMTP_USER / SMTP_PASS in .env — falling back to console logger.');
-        isDevSimulator = true;
-      }
-
-    } else if (process.env.SMTP_HOST && process.env.SMTP_USER) {
-      transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: Number(process.env.SMTP_PORT) || 587,
-        secure: process.env.SMTP_SECURE === 'true',
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS
-        }
-      });
-      console.log('[EmailService] ✅ Custom SMTP Transporter initialized successfully');
-
-    } else if (process.env.USE_ETHEREAL === 'true') {
-      try {
-        const testAccount = await nodemailer.createTestAccount();
-        transporter = nodemailer.createTransport({
-          host: 'smtp.ethereal.email',
-          port: 587,
-          secure: false,
-          auth: { user: testAccount.user, pass: testAccount.pass }
-        });
-        console.log('[EmailService] ✅ Ethereal Test Transporter initialized for:', testAccount.user);
-      } catch (err) {
-        console.warn('[EmailService] Ethereal init failed, falling back to console logger:', err.message);
-        isDevSimulator = true;
-      }
-
-    } else {
-      isDevSimulator = true;
-      console.log('[EmailService] ℹ️  No SMTP configured — using development console email logger.');
+      console.log(`[EmailService] ✅ Gmail SMTP initialized for ${gmailUser}`);
+      return transporter;
     }
-  })();
+  } else if (process.env.SMTP_HOST && process.env.SMTP_USER) {
+    transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT) || 587,
+      secure: process.env.SMTP_SECURE === 'true',
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
+      }
+    });
+    console.log('[EmailService] ✅ Custom SMTP initialized');
+    return transporter;
+  }
 
-  return initPromise;
+  return null;
 };
 
-// Kick off initialization immediately so it's ready by the time first email is sent
-initTransporter().catch(err => {
-  console.warn('[EmailService] Init warning:', err.message);
-  isDevSimulator = true;
-});
+// Verify transporter on load if configured
+setTimeout(async () => {
+  const t = getTransporter();
+  if (t) {
+    try {
+      await t.verify();
+      console.log('[EmailService] ✅ SMTP connection verified with mail server');
+    } catch (err) {
+      console.warn('[EmailService] ⚠️ SMTP verify warning:', err.message);
+    }
+  } else {
+    console.log('[EmailService] ℹ️ No SMTP credentials configured. Using development console email logger.');
+  }
+}, 500);
 
 /**
  * Generic email dispatcher with graceful fallback
  */
 const sendMail = async ({ to, subject, html, text }) => {
-  // Always await init — safe to call multiple times (returns cached promise)
-  await initTransporter();
+  const currentTransporter = getTransporter();
 
-  // When using Gmail, the FROM must exactly match the authenticated Gmail address
+  // When using Gmail, the FROM must match the authenticated Gmail address
   let from;
   if (process.env.EMAIL_FROM) {
     from = process.env.EMAIL_FROM;
-  } else if (process.env.SMTP_USER && (process.env.SMTP_SERVICE === 'gmail' || process.env.GMAIL_USER)) {
+  } else if (process.env.SMTP_USER) {
     from = `"HealthMS" <${process.env.SMTP_USER}>`;
   } else {
     from = '"HealthMS Health System" <no-reply@healthms.hospital>';
   }
 
-  if (isDevSimulator || !transporter) {
+  if (!currentTransporter) {
     const otpMatch = text?.match(/\b(\d{6})\b/);
     console.log('\n==============================================================');
-    console.log('📧 [HEALTHMS EMAIL DISPATCH - DEV SIMULATOR]');
+    console.log('📧 [HEALTHMS EMAIL DISPATCH - CONSOLE LOGGER]');
     console.log(`To:      ${to}`);
     console.log(`Subject: ${subject}`);
     if (otpMatch) {
@@ -105,11 +78,11 @@ const sendMail = async ({ to, subject, html, text }) => {
     }
     if (text) console.log(`Summary: ${text}`);
     console.log('==============================================================\n');
-    return { messageId: `dev-sim-${Date.now()}`, simulated: true };
+    return { messageId: `console-${Date.now()}`, simulated: true };
   }
 
   try {
-    const info = await transporter.sendMail({
+    const info = await currentTransporter.sendMail({
       from,
       to,
       subject,
@@ -117,18 +90,18 @@ const sendMail = async ({ to, subject, html, text }) => {
       html
     });
 
-    if (process.env.USE_ETHEREAL === 'true') {
-      console.log('[EmailService] Ethereal preview URL:', nodemailer.getTestMessageUrl(info));
-    }
-
+    console.log(`[EmailService] ✉️  Email successfully sent to ${to} (MessageId: ${info.messageId})`);
     return info;
   } catch (error) {
-    console.error('[EmailService] SendMail Error:', error.message);
-    // Fallback log to console so developers are never blocked during local testing
+    console.error(`[EmailService] ❌ SendMail Error to ${to}:`, error.message);
+    const otpMatch = text?.match(/\b(\d{6})\b/);
     console.log('\n==============================================================');
     console.log('📧 [FALLBACK CONSOLE EMAIL DISPATCH]');
     console.log(`To:      ${to}`);
     console.log(`Subject: ${subject}`);
+    if (otpMatch) {
+      console.log(`🔑 6-DIGIT VERIFICATION CODE: 👉👉  ${otpMatch[1]}  👈👈`);
+    }
     console.log('==============================================================\n');
     return { messageId: `fallback-${Date.now()}`, error: error.message };
   }

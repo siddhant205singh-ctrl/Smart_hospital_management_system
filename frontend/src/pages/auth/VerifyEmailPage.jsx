@@ -99,7 +99,10 @@ export default function VerifyEmailPage() {
       setOtp(''); // Clear old code so user types the new one
     } catch (err) {
       const data = err.response?.data;
-      if (data?.cooldown) {
+      if (data?.alreadyActive) {
+        setErrorMessage(data.error);
+        setTimeout(() => navigate('/login'), 2200);
+      } else if (data?.cooldown) {
         setErrorMessage(`Please wait ${data.waitSeconds} second(s) before requesting a new code.`);
       } else {
         setErrorMessage(data?.error || 'Failed to resend code. Please try again.');
