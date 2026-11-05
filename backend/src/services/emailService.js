@@ -1,3 +1,4 @@
+const axios = require('axios');
 const nodemailer = require('nodemailer');
 const emailTemplates = require('../templates/emailTemplates');
 
@@ -14,7 +15,10 @@ const getTransporter = () => {
     if (gmailUser && gmailPass) {
       transporter = nodemailer.createTransport({
         service: 'gmail',
-        auth: { user: gmailUser, pass: gmailPass }
+        auth: { user: gmailUser, pass: gmailPass },
+        connectionTimeout: 6000,
+        greetingTimeout: 6000,
+        socketTimeout: 8000
       });
       console.log(`[EmailService] ✅ Gmail SMTP initialized for ${gmailUser}`);
       return transporter;
@@ -27,7 +31,10 @@ const getTransporter = () => {
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS
-      }
+      },
+      connectionTimeout: 6000,
+      greetingTimeout: 6000,
+      socketTimeout: 8000
     });
     console.log('[EmailService] ✅ Custom SMTP initialized');
     return transporter;
@@ -52,9 +59,67 @@ setTimeout(async () => {
 }, 500);
 
 /**
- * Generic email dispatcher with graceful fallback
+ * Generic email dispatcher with multi-provider fallback (HTTP REST for Render + SMTP + Console)
  */
 const sendMail = async ({ to, subject, html, text }) => {
+  const fromEmail = process.env.SMTP_USER || 'healthmscare@gmail.com';
+  const fromName = 'HealthMS';
+
+  // 1. Try Brevo HTTP REST API (Recommended for Render Free Tier - Uses Port 443 HTTPS, immune to port blocking)
+  if (process.env.BREVO_API_KEY) {
+    try {
+      const resp = await axios.post(
+        'https://api.brevo.com/v3/smtp/email',
+        {
+          sender: { name: fromName, email: fromEmail },
+          to: [{ email: to }],
+          subject,
+          htmlContent: html,
+          textContent: text || subject
+        },
+        {
+          headers: {
+            'api-key': process.env.BREVO_API_KEY,
+            'Content-Type': 'application/json'
+          },
+          timeout: 6000
+        }
+      );
+      console.log(`[EmailService] ✉️  Email successfully dispatched via Brevo HTTPS API to ${to} (MessageId: ${resp.data?.messageId})`);
+      return { messageId: resp.data?.messageId, provider: 'brevo' };
+    } catch (apiErr) {
+      console.error(`[EmailService] ❌ Brevo HTTPS API Error to ${to}:`, apiErr.response?.data?.message || apiErr.message);
+    }
+  }
+
+  // 2. Try Resend HTTP REST API (Uses Port 443 HTTPS)
+  if (process.env.RESEND_API_KEY) {
+    try {
+      const resp = await axios.post(
+        'https://api.resend.com/emails',
+        {
+          from: process.env.RESEND_FROM || `${fromName} <onboarding@resend.dev>`,
+          to: [to],
+          subject,
+          html,
+          text: text || subject
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 6000
+        }
+      );
+      console.log(`[EmailService] ✉️  Email successfully dispatched via Resend HTTPS API to ${to} (MessageId: ${resp.data?.id})`);
+      return { messageId: resp.data?.id, provider: 'resend' };
+    } catch (apiErr) {
+      console.error(`[EmailService] ❌ Resend HTTPS API Error to ${to}:`, apiErr.response?.data?.message || apiErr.message);
+    }
+  }
+
+  // 3. Fallback to Nodemailer SMTP Transporter
   const currentTransporter = getTransporter();
 
   // When using Gmail, the FROM must match the authenticated Gmail address

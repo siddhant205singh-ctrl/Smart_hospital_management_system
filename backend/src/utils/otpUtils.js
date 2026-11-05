@@ -93,16 +93,25 @@ const generateAndDispatchOtp = async ({
     isUsed: false
   });
 
-  // 5. Dispatch email
-  await sendOtpEmail({
-    to: normalizedEmail,
-    name,
-    otp: plainOtp,
-    purpose,
-    expiryMinutes,
-    ipAddress,
-    deviceInfo
-  });
+  // 5. Dispatch email safely with a timeout guard so a slow or blocked cloud SMTP port never freezes the user's browser
+  try {
+    await Promise.race([
+      sendOtpEmail({
+        to: normalizedEmail,
+        name,
+        otp: plainOtp,
+        purpose,
+        expiryMinutes,
+        ipAddress,
+        deviceInfo
+      }),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Email dispatch timed out after 7s (cloud host may be throttling SMTP ports)')), 7000)
+      )
+    ]);
+  } catch (mailErr) {
+    console.error(`[OTP Dispatch Warning] Failed to send email to ${normalizedEmail}:`, mailErr.message);
+  }
 
   return {
     success: true,
