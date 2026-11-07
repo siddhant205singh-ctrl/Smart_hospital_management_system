@@ -13,6 +13,7 @@ const {
   getEmergencyReportsForCase,
   generateEmergencyReportSummary
 } = require('../controllers/reportController');
+const { getEmergencyMedicines } = require('../controllers/consultationDocumentController');
 const { protect, optionalProtect } = require('../middleware/authMiddleware');
 const { authorize } = require('../middleware/roleMiddleware');
 
@@ -22,6 +23,7 @@ router.get('/break-glass-logs', protect, authorize('admin'), getBreakGlassAuditL
 router.put('/break-glass/:id/flag', protect, authorize('admin'), flagBreakGlassLog);
 router.get('/:id', protect, getEmergencyCaseById);
 router.get('/:id/reports', protect, authorize('doctor', 'admin'), getEmergencyReportsForCase);
+router.get('/:id/medicines', protect, authorize('doctor', 'admin'), getEmergencyMedicines);
 router.post('/:id/reports/summary', protect, authorize('doctor', 'admin'), generateEmergencyReportSummary);
 router.post('/:id/break-glass', protect, authorize('doctor', 'admin'), activateBreakGlass);
 router.put('/:id/status', protect, authorize('doctor', 'admin'), updateEmergencyCaseStatus);

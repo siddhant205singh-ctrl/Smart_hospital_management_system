@@ -52,6 +52,7 @@ export default function EmergencyIntakeModal({ isOpen, onClose, onCaseSubmitted 
   const [patientPhone, setPatientPhone] = useState('');
   const [relationship, setRelationship] = useState('self');
   const [preferredHospitalId, setPreferredHospitalId] = useState('');
+  const [currentMedicines, setCurrentMedicines] = useState('');
   const [loading, setLoading] = useState(false);
   const [submittedCase, setSubmittedCase] = useState(null);
 
@@ -127,11 +128,22 @@ export default function EmergencyIntakeModal({ isOpen, onClose, onCaseSubmitted 
   useEffect(() => {
     if (isOpen) {
       detectLocation();
+      if (user) {
+        api.get('/medicines')
+          .then(res => {
+            const active = (res.data.medicines || [])
+              .filter(m => m.status === 'currently_taking')
+              .map(m => `${m.brandName}${m.strength ? ' ' + m.strength : ''}`)
+              .join(', ');
+            if (active) setCurrentMedicines(active);
+          })
+          .catch(() => {});
+      }
     } else {
       setSubmittedCase(null);
       setExpandedHospitalId(null);
     }
-  }, [isOpen]);
+  }, [isOpen, user]);
 
   // Re-fetch when symptom or filter changes
   useEffect(() => {
@@ -187,11 +199,15 @@ export default function EmergencyIntakeModal({ isOpen, onClose, onCaseSubmitted 
     e.preventDefault();
     setLoading(true);
     try {
+      let combinedDetails = complaintDescription || '';
+      if (patientPhone) combinedDetails += ` [Contact: ${patientPhone}]`;
+      if (currentMedicines) combinedDetails += ` [Current Medications: ${currentMedicines}]`;
+
       const res = await api.post('/emergency-cases', {
         chiefComplaint,
         severityScore,
         symptomOnset,
-        complaintDescription: patientPhone ? `${complaintDescription} [Contact: ${patientPhone}]`.trim() : complaintDescription,
+        complaintDescription: combinedDetails.trim(),
         preferredHospitalId: preferredHospitalId || (hospitals[0] ? hospitals[0]._id : undefined),
         submittedByName: isBystander ? submittedByName : (user?.name || submittedByName || 'Emergency Patient'),
         relationship: isBystander ? relationship : 'self',
@@ -705,6 +721,24 @@ export default function EmergencyIntakeModal({ isOpen, onClose, onCaseSubmitted 
                       className="w-full px-2.5 py-1.5 rounded-lg border bg-slate-50 dark:bg-slate-800"
                     />
                   </div>
+                </div>
+
+                {/* Current Medications (Autofilled from active medicines) */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="font-semibold block">Current Medications (Autofilled from your active medicines, editable)</label>
+                    <span className="text-[10px] text-teal-600 dark:text-teal-400">Patient-reported</span>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="e.g. Metformin 500mg, Telmisartan 40mg"
+                    value={currentMedicines}
+                    onChange={(e) => setCurrentMedicines(e.target.value)}
+                    className="w-full px-2.5 py-1.5 rounded-lg border bg-slate-50 dark:bg-slate-800 text-xs"
+                  />
+                  <span className="text-[10px] text-slate-400 block mt-0.5">
+                    Transmitted to the attending ER physician to prepare medication reconciliation.
+                  </span>
                 </div>
 
                 {/* Notes */}

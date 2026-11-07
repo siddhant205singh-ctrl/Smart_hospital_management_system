@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const AuditLog = require('../models/AuditLog');
 
 const logAudit = async ({
@@ -13,6 +14,7 @@ const logAudit = async ({
   userAgent = ''
 }) => {
   try {
+    if (mongoose.connection.readyState !== 1) return;
     await AuditLog.create({
       userId,
       userName,

@@ -15,7 +15,19 @@ import {
   Eye,
   Check,
   Stethoscope,
-  Volume2
+  Volume2,
+  Sparkles,
+  Paperclip,
+  FolderOpen,
+  RefreshCw,
+  ZoomIn,
+  ZoomOut,
+  RotateCw,
+  X,
+  Shield,
+  Pin,
+  ExternalLink,
+  Globe
 } from 'lucide-react';
 
 export default function DoctorDashboard() {
@@ -36,6 +48,19 @@ export default function DoctorDashboard() {
   const [patientRecords, setPatientRecords] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState('');
+
+  // Feature B: Pre-consultation documents & AI clinical summary state
+  const [loadedDocsAppointmentId, setLoadedDocsAppointmentId] = useState(null);
+  const [patientDocsData, setPatientDocsData] = useState(null);
+  const [loadingDocs, setLoadingDocs] = useState(false);
+  const [docsError, setDocsError] = useState('');
+  const [viewingDoc, setViewingDoc] = useState(null);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [rotation, setRotation] = useState(0);
+  const [summaryLanguage, setSummaryLanguage] = useState('en');
+  const [aiSummary, setAiSummary] = useState(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryError, setSummaryError] = useState('');
 
   // Fetch doctor record
   useEffect(() => {
@@ -93,10 +118,94 @@ export default function DoctorDashboard() {
   const handleStartConsultation = async (apptId) => {
     try {
       await api.post('/queue/start-consultation', { appointmentId: apptId });
+      // Reset doc viewer state for new patient
+      setLoadedDocsAppointmentId(null);
+      setPatientDocsData(null);
+      setAiSummary(null);
+      setDocsError('');
       fetchLiveQueue(doctorId);
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to start consultation');
     }
+  };
+
+  // Feature B: Load Patient Documents on Explicit Doctor Demand
+  const handleLoadPatientDocuments = async (appointmentId) => {
+    setLoadingDocs(true);
+    setDocsError('');
+    try {
+      const res = await api.get(`/consultations/${appointmentId}/documents`);
+      setPatientDocsData(res.data);
+      setLoadedDocsAppointmentId(appointmentId);
+    } catch (err) {
+      setDocsError(err.response?.data?.error || 'Failed to load pre-consultation documents.');
+    } finally {
+      setLoadingDocs(false);
+    }
+  };
+
+  // Toggle Reviewed status for a document
+  const handleToggleDocReview = async (appointmentId, docId) => {
+    try {
+      const res = await api.post(`/consultations/${appointmentId}/documents/${docId}/review`);
+      setPatientDocsData(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          documents: prev.documents.map(d =>
+            d._id === docId ? { ...d, isReviewedByDoctor: res.data.isReviewedByDoctor } : d
+          )
+        };
+      });
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to mark document reviewed');
+    }
+  };
+
+  // Pin document reference to clinical notes
+  const handlePinDocToNotes = (doc) => {
+    const pinSnippet = `\n[Document Verified: ${doc.title} (${doc.reportType || doc.documentType})]`;
+    if (!consultNotes.includes(pinSnippet)) {
+      setConsultNotes(prev => prev ? prev + pinSnippet : pinSnippet.trim());
+    }
+  };
+
+  // Generate Assistive AI Summary for Doctor
+  const handleGenerateAiSummary = async (appointmentId, forceRegenerate = false) => {
+    setSummaryLoading(true);
+    setSummaryError('');
+    try {
+      const endpoint = forceRegenerate
+        ? `/consultations/${appointmentId}/documents/summary/regenerate`
+        : `/consultations/${appointmentId}/documents/summary`;
+      const res = await api.post(endpoint, { language: summaryLanguage });
+      setAiSummary(res.data.summary);
+    } catch (err) {
+      setSummaryError(err.response?.data?.error || 'Summary unavailable. Please review the original documents directly.');
+    } finally {
+      setSummaryLoading(false);
+    }
+  };
+
+  // Insert AI summary into consultation notes for permanent medical record
+  const handleInsertSummaryToNotes = () => {
+    if (!aiSummary) return;
+    let text = `\n--- AI Clinical Summary (Reviewed by Physician) ---\n`;
+    if (aiSummary.overallSummary) {
+      text += `Summary: ${aiSummary.overallSummary}\n`;
+    }
+    if (aiSummary.keyFindings?.length > 0) {
+      text += `Key Findings:\n` + aiSummary.keyFindings.map(f => `• ${f.finding}${f.isAbnormal ? ' [ABNORMAL]' : ''}`).join('\n') + '\n';
+    }
+    if (aiSummary.conditions?.length > 0) {
+      text += `Reported Conditions: ${aiSummary.conditions.join(', ')}\n`;
+    }
+    if (aiSummary.medications?.length > 0) {
+      text += `Medications: ${aiSummary.medications.map(m => `${m.name} ${m.dose || ''}${m.isPatientReported ? ' (Patient-reported)' : ''}`).join(', ')}\n`;
+    }
+    text += `--------------------------------------------------\n`;
+
+    setConsultNotes(prev => prev ? prev + text : text.trim());
   };
 
   const handleEndConsultation = async () => {
@@ -237,10 +346,284 @@ export default function DoctorDashboard() {
 
                 {currentPatient.symptoms && (
                   <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-2xl text-xs">
-                    <span className="text-slate-400 block font-semibold">Reported Symptoms:</span>
-                    <span className="text-slate-800 dark:text-slate-200 font-medium">{currentPatient.symptoms}</span>
+                    <span className="text-slate-400 block font-semibold">Reported Symptoms / Reason for Visit:</span>
+                    <span className="text-slate-800 dark:text-slate-200 font-medium">{currentPatient.reasonForVisit || currentPatient.symptoms}</span>
                   </div>
                 )}
+
+                {/* Feature B: Pre-Consultation Patient Documents Panel */}
+                <div className="p-4 rounded-3xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-3.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-slate-200/80 dark:border-slate-700/80">
+                    <div className="flex items-center space-x-2">
+                      <FolderOpen className="w-4 h-4 text-teal-600" />
+                      <h4 className="font-bold text-xs text-slate-900 dark:text-white">
+                        Pre-Consultation Documents & Health Records
+                      </h4>
+                      {(currentPatient.documentsCount > 0 || patientDocsData?.documents?.length > 0) && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300">
+                          {patientDocsData?.documents?.length || currentPatient.documentsCount} Attached
+                        </span>
+                      )}
+                    </div>
+
+                    {loadedDocsAppointmentId !== currentPatient._id ? (
+                      <button
+                        onClick={() => handleLoadPatientDocuments(currentPatient._id)}
+                        disabled={loadingDocs}
+                        className="px-3.5 py-1.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center justify-center space-x-1.5 self-start sm:self-auto"
+                      >
+                        <FolderOpen className="w-3.5 h-3.5" />
+                        <span>{loadingDocs ? 'Loading Records...' : 'Load Patient Documents'}</span>
+                      </button>
+                    ) : (
+                      <div className="flex items-center space-x-2">
+                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center space-x-1">
+                          <CheckCircle className="w-3.5 h-3.5" />
+                          <span>Consent Verified</span>
+                        </span>
+                        <button
+                          onClick={() => handleLoadPatientDocuments(currentPatient._id)}
+                          title="Refresh documents"
+                          className="p-1 rounded-lg border text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700"
+                        >
+                          <RefreshCw className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {docsError && (
+                    <div className="p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 text-rose-700 dark:text-rose-300 text-xs flex items-center space-x-2">
+                      <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                      <span>{docsError}</span>
+                    </div>
+                  )}
+
+                  {/* Documents List when loaded */}
+                  {loadedDocsAppointmentId === currentPatient._id && patientDocsData && (
+                    <div className="space-y-3">
+                      {patientDocsData.documents?.length === 0 ? (
+                        <p className="text-xs text-slate-400 py-2 text-center">No documents were attached for this appointment.</p>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          {patientDocsData.documents.map(doc => (
+                            <div
+                              key={doc._id}
+                              className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 flex flex-col justify-between space-y-2 shadow-xs"
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="space-y-0.5">
+                                  <span className="font-bold text-xs text-slate-900 dark:text-white block truncate max-w-[170px]">
+                                    {doc.title}
+                                  </span>
+                                  <span className="text-[10px] text-slate-400 block capitalize">
+                                    {doc.reportType || doc.documentType}
+                                  </span>
+                                </div>
+                                {doc.isReviewedByDoctor && (
+                                  <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                                    Reviewed
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="flex items-center space-x-1.5 pt-1 border-t border-slate-100 dark:border-slate-800 text-[11px]">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setViewingDoc(doc);
+                                    setZoomLevel(1);
+                                    setRotation(0);
+                                  }}
+                                  className="flex-1 py-1 px-2 rounded-lg bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 hover:bg-teal-100 font-semibold flex items-center justify-center space-x-1"
+                                >
+                                  <Eye className="w-3 h-3" />
+                                  <span>View</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleDocReview(currentPatient._id, doc._id)}
+                                  className={`py-1 px-2 rounded-lg font-semibold border transition ${
+                                    doc.isReviewedByDoctor
+                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                      : 'text-slate-600 hover:bg-slate-50 border-slate-200 dark:border-slate-700'
+                                  }`}
+                                  title="Mark as reviewed by physician"
+                                >
+                                  <Check className="w-3 h-3" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handlePinDocToNotes(doc)}
+                                  className="p-1 rounded-lg text-slate-500 hover:text-teal-600 hover:bg-slate-50 border border-slate-200 dark:border-slate-700"
+                                  title="Pin to clinical notes"
+                                >
+                                  <Pin className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Feature B4: Assistive AI Clinical Summary (Doctor-Only) */}
+                      {patientDocsData.documents?.length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-slate-200/80 dark:border-slate-700/80 space-y-3">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div className="flex items-center space-x-2">
+                              <Sparkles className="w-4 h-4 text-purple-600" />
+                              <h5 className="font-bold text-xs text-purple-900 dark:text-purple-300">
+                                Assistive AI Clinical Summary (Physician Review Only)
+                              </h5>
+                            </div>
+
+                            <div className="flex items-center space-x-2">
+                              <div className="flex items-center space-x-1 p-0.5 bg-slate-100 dark:bg-slate-700 rounded-lg text-[10px]">
+                                <Globe className="w-3 h-3 text-slate-400 ml-1" />
+                                <button
+                                  type="button"
+                                  onClick={() => setSummaryLanguage('en')}
+                                  className={`px-1.5 py-0.5 rounded font-bold transition ${
+                                    summaryLanguage === 'en' ? 'bg-white dark:bg-slate-800 text-purple-700 dark:text-purple-300 shadow-xs' : 'text-slate-500'
+                                  }`}
+                                >
+                                  EN
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setSummaryLanguage('hi')}
+                                  className={`px-1.5 py-0.5 rounded font-bold transition ${
+                                    summaryLanguage === 'hi' ? 'bg-white dark:bg-slate-800 text-purple-700 dark:text-purple-300 shadow-xs' : 'text-slate-500'
+                                  }`}
+                                >
+                                  हिंदी
+                                </button>
+                              </div>
+
+                              <button
+                                type="button"
+                                disabled={summaryLoading}
+                                onClick={() => handleGenerateAiSummary(currentPatient._id, !!aiSummary)}
+                                className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl shadow-xs transition disabled:opacity-50 flex items-center space-x-1"
+                              >
+                                <Sparkles className="w-3.5 h-3.5" />
+                                <span>{summaryLoading ? 'Analyzing...' : aiSummary ? 'Regenerate' : 'Summarize with AI'}</span>
+                              </button>
+                            </div>
+                          </div>
+
+                          {summaryError && (
+                            <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 text-amber-800 dark:text-amber-200 text-xs">
+                              {summaryError}
+                            </div>
+                          )}
+
+                          {aiSummary && (
+                            <div className="p-4 rounded-2xl bg-purple-50/60 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800 space-y-3 text-xs animate-in fade-in">
+                              {/* Clinical Review Disclaimer */}
+                              <div className="p-2.5 rounded-xl bg-purple-100/70 dark:bg-purple-900/40 border border-purple-300 text-purple-900 dark:text-purple-200 text-[10px] leading-relaxed">
+                                <strong>Physician Notice:</strong> {aiSummary.disclaimer || 'AI-generated summary for clinical review. Not a diagnosis or treatment recommendation. Verify against the original documents.'}
+                              </div>
+
+                              {/* 1. Overall Summary */}
+                              {aiSummary.overallSummary && (
+                                <div>
+                                  <span className="font-bold text-slate-800 dark:text-slate-200 block text-[11px] mb-0.5">
+                                    Overall Summary:
+                                  </span>
+                                  <p className="text-slate-700 dark:text-slate-300 leading-relaxed">
+                                    {aiSummary.overallSummary}
+                                  </p>
+                                </div>
+                              )}
+
+                              {/* 2. Key Findings & Flagged Abnormal Values */}
+                              {aiSummary.keyFindings?.length > 0 && (
+                                <div>
+                                  <span className="font-bold text-slate-800 dark:text-slate-200 block text-[11px] mb-1">
+                                    Key Findings & Lab Values:
+                                  </span>
+                                  <div className="space-y-1">
+                                    {aiSummary.keyFindings.map((f, i) => (
+                                      <div
+                                        key={i}
+                                        className={`p-1.5 rounded-lg flex items-start justify-between text-[11px] ${
+                                          f.isAbnormal
+                                            ? 'bg-rose-100/70 dark:bg-rose-950/50 text-rose-900 dark:text-rose-200 border border-rose-200'
+                                            : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200'
+                                        }`}
+                                      >
+                                        <span>• {f.finding}</span>
+                                        {f.isAbnormal && (
+                                          <span className="ml-2 px-1.5 py-0.2 rounded font-black text-[9px] uppercase bg-rose-600 text-white flex-shrink-0">
+                                            Abnormal
+                                          </span>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* 3. Conditions & Allergies */}
+                              {aiSummary.conditions?.length > 0 && (
+                                <div>
+                                  <span className="font-bold text-slate-800 dark:text-slate-200 block text-[11px] mb-0.5">
+                                    Diagnoses / Conditions:
+                                  </span>
+                                  <span className="text-slate-700 dark:text-slate-300">
+                                    {aiSummary.conditions.join(', ')}
+                                  </span>
+                                </div>
+                              )}
+
+                              {/* 4. Medications */}
+                              {aiSummary.medications?.length > 0 && (
+                                <div>
+                                  <span className="font-bold text-slate-800 dark:text-slate-200 block text-[11px] mb-1">
+                                    Current Medications:
+                                  </span>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {aiSummary.medications.map((m, i) => (
+                                      <span
+                                        key={i}
+                                        className="px-2 py-0.5 rounded-lg bg-white dark:bg-slate-800 border text-[11px] text-slate-800 dark:text-slate-200"
+                                      >
+                                        {m.name} {m.dose}
+                                        {m.isPatientReported && (
+                                          <em className="text-[9px] text-amber-600 ml-1">(Patient-reported)</em>
+                                        )}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* 5. Gaps or Missing items */}
+                              {aiSummary.possibleGaps?.length > 0 && (
+                                <div className="text-[10px] text-slate-500">
+                                  <strong>Possible Gaps:</strong> {aiSummary.possibleGaps.join('; ')}
+                                </div>
+                              )}
+
+                              {/* Insert into Notes button */}
+                              <div className="pt-2 flex justify-end">
+                                <button
+                                  type="button"
+                                  onClick={handleInsertSummaryToNotes}
+                                  className="px-3 py-1.5 bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center space-x-1"
+                                >
+                                  <Pin className="w-3.5 h-3.5" />
+                                  <span>Insert Summary into Clinical Notes</span>
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
 
                 {/* Consultation Notes & Prescriptions */}
                 <div className="space-y-3 pt-2">
@@ -333,6 +716,12 @@ export default function DoctorDashboard() {
                           <span className="text-[10px] text-slate-400 block">
                             Slot: {item.timeSlot} • Status: <strong className="capitalize">{item.status.replace('_', ' ')}</strong>
                           </span>
+                          {(item.documentsCount > 0 || item.hasDocuments) && (
+                            <span className="inline-flex items-center space-x-1 mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                              <Paperclip className="w-3 h-3" />
+                              <span>Documents attached ({item.documentsCount || 1})</span>
+                            </span>
+                          )}
                         </div>
                       </div>
 
@@ -362,6 +751,102 @@ export default function DoctorDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Inline Document Viewer Modal (Doctor Only) */}
+      {viewingDoc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+              <div>
+                <h4 className="font-bold text-sm text-slate-900 dark:text-white">
+                  {viewingDoc.title}
+                </h4>
+                <span className="text-[10px] text-slate-400 capitalize">
+                  {viewingDoc.reportType || viewingDoc.documentType} • Verified Consultation Access
+                </span>
+              </div>
+
+              {/* Viewer Controls */}
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setZoomLevel(prev => Math.max(0.5, prev - 0.2))}
+                  className="p-1.5 rounded-lg border hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
+                  title="Zoom Out"
+                >
+                  <ZoomOut className="w-4 h-4" />
+                </button>
+                <span className="text-[11px] font-mono text-slate-500 w-10 text-center">
+                  {Math.round(zoomLevel * 100)}%
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setZoomLevel(prev => Math.min(3, prev + 0.2))}
+                  className="p-1.5 rounded-lg border hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
+                  title="Zoom In"
+                >
+                  <ZoomIn className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRotation(prev => (prev + 90) % 360)}
+                  className="p-1.5 rounded-lg border hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
+                  title="Rotate 90°"
+                >
+                  <RotateCw className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewingDoc(null)}
+                  className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 hover:text-rose-600 text-slate-600 dark:text-slate-300"
+                  title="Close viewer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Viewer Body */}
+            <div className="flex-1 overflow-auto p-4 bg-slate-100 dark:bg-slate-950 flex items-center justify-center min-h-[400px]">
+              {viewingDoc.signedViewUrl?.includes('.pdf') || viewingDoc.fileUrl?.endsWith('.pdf') ? (
+                <iframe
+                  src={viewingDoc.signedViewUrl}
+                  title={viewingDoc.title}
+                  className="w-full h-[65vh] rounded-xl border border-slate-300 dark:border-slate-700 bg-white"
+                />
+              ) : (
+                <div
+                  className="transition-transform duration-200 max-w-full max-h-[65vh] flex items-center justify-center"
+                  style={{
+                    transform: `scale(${zoomLevel}) rotate(${rotation}deg)`
+                  }}
+                >
+                  <img
+                    src={viewingDoc.signedViewUrl || viewingDoc.fileUrl}
+                    alt={viewingDoc.title}
+                    className="max-w-full max-h-[65vh] object-contain rounded-xl shadow-md border"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs bg-white dark:bg-slate-900">
+              <span className="text-[11px] text-slate-400">
+                Encrypted signed token access • Access logged to patient audit trail
+              </span>
+              <button
+                type="button"
+                onClick={() => setViewingDoc(null)}
+                className="px-4 py-1.5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 font-bold rounded-xl text-slate-700 dark:text-slate-200"
+              >
+                Close Viewer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Patient Health History Modal with Consent Enforcement */}
       {historyPatient && (

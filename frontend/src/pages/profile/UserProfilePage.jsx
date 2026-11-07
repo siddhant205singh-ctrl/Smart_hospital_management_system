@@ -32,8 +32,11 @@ import {
   ExternalLink,
   ZoomIn,
   ZoomOut,
-  ShieldCheck
+  ShieldCheck,
+  Pill
 } from 'lucide-react';
+import MedicineScannerModal from '../../components/medicines/MedicineScannerModal';
+import ManualMedicineModal from '../../components/medicines/ManualMedicineModal';
 
 export default function UserProfilePage() {
   const { user } = useAuth();
@@ -63,7 +66,8 @@ export default function UserProfilePage() {
     privacySettings: {
       shareWithConsultingDoctors: true,
       showInDonorDirectory: true,
-      allowEmergencyBreakGlass: true
+      allowEmergencyBreakGlass: true,
+      useHealthDataInAssistant: true
     },
     patientHealth: {
       bloodGroup: 'O+',
@@ -101,6 +105,15 @@ export default function UserProfilePage() {
   const [uploadSubmitting, setUploadSubmitting] = useState(false);
   const [previewReport, setPreviewReport] = useState(null);
   const [previewZoom, setPreviewZoom] = useState(1);
+
+  // My Medicines State
+  const [reportsSubTab, setReportsSubTab] = useState('reports');
+  const [medicines, setMedicines] = useState([]);
+  const [medicinesLoading, setMedicinesLoading] = useState(false);
+  const [medFilterStatus, setMedFilterStatus] = useState('all');
+  const [medSearch, setMedSearch] = useState('');
+  const [showScannerModal, setShowScannerModal] = useState(false);
+  const [showManualMedModal, setShowManualMedModal] = useState(false);
 
   // Upload Form state
   const [uploadData, setUploadData] = useState({
@@ -246,11 +259,71 @@ export default function UserProfilePage() {
     }
   };
 
+  const fetchMedicines = async () => {
+    setMedicinesLoading(true);
+    try {
+      const res = await api.get('/medicines');
+      setMedicines(res.data.medicines || []);
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to load medicines', 'error');
+    } finally {
+      setMedicinesLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === 'reports' && user?.role === 'patient') {
       fetchReports();
+      fetchMedicines();
     }
   }, [activeTab, user]);
+
+  const handleToggleMedStatus = async (medId, currentStatus) => {
+    const nextStatus = currentStatus === 'currently_taking' ? 'stopped' : 'currently_taking';
+    try {
+      await api.patch(`/medicines/${medId}/status`, { status: nextStatus });
+      fetchMedicines();
+      fetchReports();
+      showToast(`Medicine marked as ${nextStatus === 'stopped' ? 'stopped' : 'currently taking'}`);
+    } catch (err) {
+      showToast('Failed to update medicine status', 'error');
+    }
+  };
+
+  const handleChangeMedVisibility = async (medId, visibility) => {
+    try {
+      await api.patch(`/medicines/${medId}/visibility`, { visibility });
+      fetchMedicines();
+      fetchReports();
+      showToast(`Visibility updated to ${visibility}`);
+    } catch (err) {
+      showToast('Failed to update visibility', 'error');
+    }
+  };
+
+  const handleDeleteMedicine = async (medId) => {
+    if (!window.confirm('Delete this medicine record from your profile?')) return;
+    try {
+      await api.delete(`/medicines/${medId}`);
+      fetchMedicines();
+      fetchReports();
+      showToast('Medicine removed from your profile');
+    } catch (err) {
+      showToast('Failed to delete medicine', 'error');
+    }
+  };
+
+  const handleDeleteMedPhoto = async (medId) => {
+    if (!window.confirm('Delete this photo while keeping the structured medicine record?')) return;
+    try {
+      await api.delete(`/medicines/${medId}/photo`);
+      fetchMedicines();
+      showToast('Photo deleted. Medicine record retained.');
+    } catch (err) {
+      showToast('Failed to delete photo', 'error');
+    }
+  };
 
   const handleFileSelect = (e) => {
     const file = e.target.files?.[0];
@@ -442,6 +515,29 @@ export default function UserProfilePage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      {/* Medicine Scanner Modal */}
+      <MedicineScannerModal
+        isOpen={showScannerModal}
+        onClose={() => setShowScannerModal(false)}
+        existingMedicines={medicines}
+        onMedicinesSaved={(newMeds) => {
+          fetchMedicines();
+          fetchReports();
+          showToast(`${newMeds.length} medicine(s) saved to My Medicines!`);
+        }}
+      />
+
+      {/* Manual Medicine Addition Modal */}
+      <ManualMedicineModal
+        isOpen={showManualMedModal}
+        onClose={() => setShowManualMedModal(false)}
+        onMedicineAdded={(newMed) => {
+          fetchMedicines();
+          fetchReports();
+          showToast(`${newMed.name} added to My Medicines!`);
+        }}
+      />
+
       {/* Toast Notification */}
       {toast.show && (
         <div
@@ -1387,6 +1483,24 @@ export default function UserProfilePage() {
                   className="rounded text-teal-600 mt-1"
                 />
               </label>
+
+              <label className="flex items-start justify-between p-3.5 rounded-2xl border border-teal-100 dark:border-teal-900 bg-teal-50/50 dark:bg-teal-950/20">
+                <div>
+                  <strong className="block text-teal-900 dark:text-teal-200">Use my health data in the assistant</strong>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400">Enables SmartCare Assistant to personalize help using your profile, allergies, medicines, and timeline</span>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={profile.privacySettings?.useHealthDataInAssistant !== false}
+                  onChange={(e) =>
+                    setProfile({
+                      ...profile,
+                      privacySettings: { ...profile.privacySettings, useHealthDataInAssistant: e.target.checked }
+                    })
+                  }
+                  className="rounded text-teal-600 mt-1"
+                />
+              </label>
             </div>
 
             <button
@@ -1420,6 +1534,36 @@ export default function UserProfilePage() {
       {/* Tab: Medical Reports */}
       {isPatient && activeTab === 'reports' && (
         <div className="space-y-6">
+          {/* Sub Navigation: Diagnostic Reports vs My Medicines */}
+          <div className="flex items-center space-x-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+            <button
+              type="button"
+              onClick={() => setReportsSubTab('reports')}
+              className={`px-4 py-2 rounded-2xl text-xs font-bold transition flex items-center space-x-2 ${
+                reportsSubTab === 'reports'
+                  ? 'bg-teal-600 text-white shadow-md shadow-teal-600/20'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
+              }`}
+            >
+              <FileText className="w-4 h-4" />
+              <span>Diagnostic Reports ({reports.length})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setReportsSubTab('medicines')}
+              className={`px-4 py-2 rounded-2xl text-xs font-bold transition flex items-center space-x-2 ${
+                reportsSubTab === 'medicines'
+                  ? 'bg-teal-600 text-white shadow-md shadow-teal-600/20'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
+              }`}
+            >
+              <Pill className="w-4 h-4" />
+              <span>My Medicines ({medicines.length})</span>
+            </button>
+          </div>
+
+          {reportsSubTab === 'reports' ? (
+            <div className="space-y-6">
           {/* Header & Upload Banner */}
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div>
@@ -1661,7 +1805,285 @@ export default function UserProfilePage() {
             </div>
           </div>
         </div>
+      ) : (
+        /* Sub Tab: My Medicines */
+        <div className="space-y-6">
+          {/* Header & Scan Banner */}
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center space-x-2">
+                <span className="p-2 rounded-2xl bg-teal-50 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400">
+                  <Pill className="w-5 h-5" />
+                </span>
+                <h3 className="font-bold text-base text-slate-900 dark:text-white">My Medicines Cabinet</h3>
+              </div>
+              <p className="text-xs text-slate-500 mt-1 max-w-xl">
+                Photograph medicine packaging or prescription slips. AI automatically reads brand, generic salt, strength, and packaging. Verified items appear in your Medical Reports, sync with your Health Timeline, and can be shared in emergencies or doctor consultations.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowScannerModal(true)}
+                className="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-2xl shadow-md shadow-teal-600/30 transition flex items-center space-x-2"
+              >
+                <Camera className="w-4 h-4" />
+                <span>Scan Medicine</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowManualMedModal(true)}
+                className="px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-2xl transition flex items-center space-x-1.5"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Manually</span>
+              </button>
+
+              <a
+                href="/api/medicines/export-pdf"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3.5 py-2.5 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold text-xs rounded-2xl transition flex items-center space-x-1.5"
+              >
+                <Download className="w-4 h-4" />
+                <span>Medication Card</span>
+              </a>
+            </div>
+          </div>
+
+          {/* Search & Status Filters */}
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 sm:p-5 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                <input
+                  type="text"
+                  placeholder="Search medicines by brand, generic salt, or reason..."
+                  value={medSearch}
+                  onChange={(e) => setMedSearch(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
+                />
+              </div>
+
+              {/* Status Filter Tabs */}
+              <div className="flex items-center space-x-1 overflow-x-auto pb-1 sm:pb-0">
+                {[
+                  { id: 'all', label: 'All', count: medicines.length },
+                  { id: 'currently_taking', label: 'Taking', count: medicines.filter(m => m.status === 'currently_taking').length },
+                  { id: 'as_needed', label: 'PRN', count: medicines.filter(m => m.status === 'as_needed').length },
+                  { id: 'stopped', label: 'Stopped', count: medicines.filter(m => m.status === 'stopped').length }
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setMedFilterStatus(tab.id)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 ${
+                      medFilterStatus === tab.id
+                        ? 'bg-teal-600 text-white'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                    }`}
+                  >
+                    <span>{tab.label}</span>
+                    <span className="text-[10px] opacity-75 font-mono">({tab.count})</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Medicines Grid */}
+          {medicinesLoading ? (
+            <div className="py-12 text-center text-slate-400 text-xs">Loading your medicines...</div>
+          ) : medicines.filter(m => {
+              if (medFilterStatus !== 'all' && m.status !== medFilterStatus) return false;
+              if (medSearch) {
+                const q = medSearch.toLowerCase();
+                const match = m.name?.toLowerCase().includes(q) ||
+                              m.brandName?.toLowerCase().includes(q) ||
+                              m.genericName?.toLowerCase().includes(q) ||
+                              m.reason?.toLowerCase().includes(q);
+                if (!match) return false;
+              }
+              return true;
+            }).length === 0 ? (
+            <div className="bg-white dark:bg-slate-900 rounded-3xl p-10 text-center border border-slate-200 dark:border-slate-800 space-y-3">
+              <Pill className="w-10 h-10 text-slate-300 mx-auto" />
+              <h4 className="font-bold text-sm text-slate-700 dark:text-slate-200">No medicines in this view</h4>
+              <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                Scan a medicine blister strip, bottle, or prescription slip to start building your medication cabinet.
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowScannerModal(true)}
+                className="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-md transition"
+              >
+                Scan First Medicine
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {medicines
+                .filter(m => {
+                  if (medFilterStatus !== 'all' && m.status !== medFilterStatus) return false;
+                  if (medSearch) {
+                    const q = medSearch.toLowerCase();
+                    const match = m.name?.toLowerCase().includes(q) ||
+                                  m.brandName?.toLowerCase().includes(q) ||
+                                  m.genericName?.toLowerCase().includes(q) ||
+                                  m.reason?.toLowerCase().includes(q);
+                    if (!match) return false;
+                  }
+                  return true;
+                })
+                .map(med => (
+                  <div
+                    key={med._id}
+                    className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between space-y-3 hover:border-teal-500/50 transition"
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="space-y-0.5">
+                          <h4 className="font-black text-sm text-slate-900 dark:text-white flex items-center space-x-1.5">
+                            <span>{med.name}</span>
+                            {med.strength && <span className="text-teal-600 text-xs">({med.strength})</span>}
+                          </h4>
+                          {med.genericName && (
+                            <p className="text-[11px] text-slate-500 italic">
+                              Generic: {med.genericName}
+                            </p>
+                          )}
+                        </div>
+
+                        <span
+                          className={`px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wide shrink-0 ${
+                            med.status === 'currently_taking'
+                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                              : med.status === 'as_needed'
+                              ? 'bg-sky-100 text-sky-800 dark:bg-sky-950/60 dark:text-sky-300'
+                              : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                          }`}
+                        >
+                          {med.status === 'currently_taking' ? 'Taking' : med.status === 'as_needed' ? 'PRN / As Needed' : 'Stopped'}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-2xl">
+                        <div>
+                          <span className="text-[10px] text-slate-400 block font-semibold">Dosage & Schedule:</span>
+                          <span className="font-bold">{med.dosage || '1 unit'} - {med.frequency || 'Daily'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 block font-semibold">Dosage Form:</span>
+                          <span className="font-bold capitalize">{med.dosageForm || 'Tablet'}</span>
+                        </div>
+                        {med.reason && (
+                          <div className="col-span-2">
+                            <span className="text-[10px] text-slate-400 block font-semibold">Reason:</span>
+                            <span>{med.reason}</span>
+                          </div>
+                        )}
+                        {med.prescribedBy && (
+                          <div className="col-span-2">
+                            <span className="text-[10px] text-slate-400 block font-semibold">Prescribed By:</span>
+                            <span>{med.prescribedBy}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Provenance Tag */}
+                      <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1">
+                        <span className="flex items-center space-x-1">
+                          {med.provenance?.source === 'ai_scan' ? (
+                            <Sparkles className="w-3 h-3 text-teal-500 shrink-0" />
+                          ) : (
+                            <Pill className="w-3 h-3 text-slate-400 shrink-0" />
+                          )}
+                          <span>{med.provenance?.label || 'Patient-reported'}</span>
+                        </span>
+
+                        {med.photoUrl && (
+                          <div className="flex items-center space-x-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setPreviewReport({ fileUrl: med.photoUrl, title: med.name, fileName: med.photoFileName });
+                                setPreviewZoom(1);
+                              }}
+                              className="text-teal-600 hover:underline flex items-center space-x-0.5 font-bold"
+                            >
+                              <Eye className="w-3 h-3" />
+                              <span>View Photo</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteMedPhoto(med._id)}
+                              className="text-slate-400 hover:text-rose-500 transition"
+                              title="Delete photo, keep record"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Card Controls */}
+                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+                      {/* Quick Toggle Status */}
+                      <button
+                        type="button"
+                        onClick={() => handleToggleMedStatus(med._id, med.status)}
+                        className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition ${
+                          med.status === 'currently_taking'
+                            ? 'bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300'
+                            : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300'
+                        }`}
+                      >
+                        {med.status === 'currently_taking' ? 'Mark Stopped' : 'Resume Taking'}
+                      </button>
+
+                      <div className="flex items-center space-x-1.5">
+                        {/* Visibility Selector */}
+                        <select
+                          value={med.visibility}
+                          onChange={(e) => handleChangeMedVisibility(med._id, e.target.value)}
+                          className="px-2 py-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-[11px] font-semibold"
+                        >
+                          <option value="emergency_share">Emergency Share</option>
+                          <option value="consent_only">Consent Only</option>
+                          <option value="private">Private</option>
+                        </select>
+
+                        {/* Delete Medicine */}
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteMedicine(med._id)}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition"
+                          title="Delete Medicine"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          )}
+
+          {/* Medicine Safety Disclaimer */}
+          <div className="p-4 rounded-2xl bg-teal-50 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800 text-[11px] text-teal-800 dark:text-teal-200 flex items-start space-x-3">
+            <ShieldCheck className="w-4 h-4 text-teal-600 shrink-0 mt-0.5" />
+            <div>
+              <strong className="block font-bold mb-0.5">Clinical Safety Notice</strong>
+              This medicine list is for your personal records and for sharing with your consulting physician. HealthMS records printed packaging details confirmed by you. Never alter or discontinue prescribed medication without your doctor's or pharmacist's direct advice.
+            </div>
+          </div>
+        </div>
       )}
+    </div>
+  )}
 
       {/* Upload Report Modal */}
       {showUploadModal && (

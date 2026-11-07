@@ -51,12 +51,28 @@ export default function DoctorEmergencyViewPage() {
 
   // Key Reports & AI Summary state
   const [emergencyReports, setEmergencyReports] = useState([]);
+  const [emergencyMedicines, setEmergencyMedicines] = useState([]);
+  const [medicinesLoading, setMedicinesLoading] = useState(false);
   const [reportsLoading, setReportsLoading] = useState(false);
   const [privateReportsNotice, setPrivateReportsNotice] = useState(null);
   const [previewReport, setPreviewReport] = useState(null);
   const [previewZoom, setPreviewZoom] = useState(1);
   const [aiSummary, setAiSummary] = useState(null);
   const [aiSummaryLoading, setAiSummaryLoading] = useState(false);
+
+  const fetchEmergencyMedicines = async (caseId) => {
+    if (!caseId) return;
+    setMedicinesLoading(true);
+    try {
+      const res = await api.get(`/emergency-cases/${caseId}/medicines`);
+      setEmergencyMedicines(res.data.medicines || []);
+    } catch (err) {
+      console.warn('Medicines load error:', err.message);
+      setEmergencyMedicines([]);
+    } finally {
+      setMedicinesLoading(false);
+    }
+  };
 
   const fetchEmergencyReports = async (caseId) => {
     if (!caseId) return;
@@ -65,6 +81,7 @@ export default function DoctorEmergencyViewPage() {
       const res = await api.get(`/emergency-cases/${caseId}/reports`);
       setEmergencyReports(res.data.reports || []);
       setPrivateReportsNotice(res.data.privateNotice || null);
+      fetchEmergencyMedicines(caseId);
     } catch (err) {
       console.warn('Reports load error:', err.message);
       setEmergencyReports([]);
@@ -570,6 +587,75 @@ export default function DoctorEmergencyViewPage() {
                     </div>
                   )}
                 </div>
+              </div>
+
+              {/* Feature A5: Current Medications Panel (Patient-Reported & Emergency-Shared) */}
+              <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <h3 className="font-bold text-base text-slate-900 dark:text-white flex items-center space-x-2">
+                      <Pill className="w-4 h-4 text-rose-500" />
+                      <span>Current Medications (Patient-Reported)</span>
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Active medicines shared by the patient for emergency visibility.
+                    </p>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-full bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 font-bold text-xs border border-rose-200">
+                    {emergencyMedicines.length} Active Medicine(s)
+                  </span>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 text-amber-900 dark:text-amber-200 text-[10px]">
+                  <strong>Clinical Notice:</strong> Patient-reported list for clinical awareness only. Does not replace attending physician evaluation or hospital medication reconciliation.
+                </div>
+
+                {medicinesLoading ? (
+                  <div className="p-6 text-center text-xs text-slate-400">Loading patient medicines...</div>
+                ) : emergencyMedicines.length === 0 ? (
+                  <div className="p-6 text-center text-xs text-slate-400 border border-dashed rounded-2xl">
+                    No active medicines marked for emergency sharing by this patient.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                    {emergencyMedicines.map(med => (
+                      <div
+                        key={med._id}
+                        className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <span className="font-bold text-sm text-slate-900 dark:text-white block">
+                              {med.brandName}
+                            </span>
+                            {med.genericName && (
+                              <span className="text-[11px] text-slate-500 italic block">
+                                ({med.genericName})
+                              </span>
+                            )}
+                          </div>
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200">
+                            {med.dosageForm}
+                          </span>
+                        </div>
+
+                        <div className="space-y-0.5 text-xs text-slate-600 dark:text-slate-300">
+                          {med.strength && <div><strong>Strength:</strong> {med.strength}</div>}
+                          {med.dosage && <div><strong>Dose:</strong> {med.dosage} ({med.frequency || 'Daily'})</div>}
+                          {med.reason && <div><strong>Reason:</strong> {med.reason}</div>}
+                        </div>
+
+                        <div className="pt-2 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between text-[10px]">
+                          <span className="text-teal-700 dark:text-teal-300 font-semibold">
+                            {med.provenance === 'scanned_ai'
+                              ? 'Patient-reported • Scanned by AI, confirmed by patient'
+                              : 'Patient-reported • Entered manually'}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Break-Glass Authorization Protocol Section */}

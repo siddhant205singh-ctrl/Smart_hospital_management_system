@@ -23,6 +23,8 @@ const bloodAlertRoutes = require('./routes/bloodAlertRoutes');
 const emergencyRoutes = require('./routes/emergencyRoutes');
 const reportRoutes = require('./routes/reportRoutes');
 const approvalRoutes = require('./routes/approvalRoutes');
+const medicineRoutes = require('./routes/medicineRoutes');
+const consultationRoutes = require('./routes/consultationRoutes');
 
 const app = express();
 
@@ -78,6 +80,8 @@ app.use('/api/blood-alerts', bloodAlertRoutes);
 app.use('/api/emergency-cases', emergencyRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/approvals', approvalRoutes);
+app.use('/api/medicines', medicineRoutes);
+app.use('/api/consultations', consultationRoutes);
 
 // Static uploads serving
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));

@@ -1,4 +1,5 @@
 const Consent = require('../models/Consent');
+const AppointmentConsent = require('../models/AppointmentConsent');
 const AuditLog = require('../models/AuditLog');
 const { logAudit } = require('../middleware/auditMiddleware');
 
@@ -6,7 +7,12 @@ const { logAudit } = require('../middleware/auditMiddleware');
 exports.getMyGrants = async (req, res, next) => {
   try {
     const grants = await Consent.find({ patientId: req.user._id }).sort({ createdAt: -1 });
-    res.json({ success: true, grants });
+    const appointmentConsents = await AppointmentConsent.find({ patientId: req.user._id })
+      .populate({ path: 'doctorId', select: 'name specialty roomNumber user' })
+      .populate({ path: 'appointmentId', select: 'date timeSlot tokenNumber status' })
+      .sort({ createdAt: -1 });
+
+    res.json({ success: true, grants, appointmentConsents });
   } catch (error) {
     next(error);
   }

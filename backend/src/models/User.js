@@ -75,7 +75,9 @@ const userSchema = new mongoose.Schema({
   privacySettings: {
     shareWithConsultingDoctors: { type: Boolean, default: true },
     showInDonorDirectory: { type: Boolean, default: true },
-    allowEmergencyBreakGlass: { type: Boolean, default: true }
+    allowEmergencyBreakGlass: { type: Boolean, default: true },
+    useHealthDataInAssistant: { type: Boolean, default: true },
+    assistantConsentNoticeDismissed: { type: Boolean, default: false }
   },
   patientHealth: {
     bloodGroup: { type: String, enum: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] },

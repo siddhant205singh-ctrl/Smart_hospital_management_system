@@ -13,11 +13,19 @@ const medicalReportSchema = new mongoose.Schema({
       'prescription',
       'discharge_summary',
       'vaccination',
+      'medicine',
       'other'
     ],
     required: true,
     index: true
   },
+  source: {
+    type: String,
+    enum: ['profile', 'booking'],
+    default: 'profile',
+    index: true
+  },
+  medicineRecordId: { type: mongoose.Schema.Types.ObjectId, ref: 'MedicineRecord' },
   reportDate: { type: Date, required: true, default: Date.now },
   issuingFacility: { type: String, required: true, trim: true },
   doctorName: { type: String, default: '', trim: true },

@@ -12,12 +12,15 @@ import {
   History,
   Building2,
   CheckCircle2,
-  XCircle
+  XCircle,
+  FileText,
+  Calendar
 } from 'lucide-react';
 
 export default function ConsentManagerPage() {
   const { user } = useAuth();
   const [grants, setGrants] = useState([]);
+  const [appointmentConsents, setAppointmentConsents] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showGrantModal, setShowGrantModal] = useState(false);
@@ -38,6 +41,7 @@ export default function ConsentManagerPage() {
         api.get('/consent/audit-log')
       ]);
       setGrants(grantsRes.data.grants || []);
+      setAppointmentConsents(grantsRes.data.appointmentConsents || []);
       setAuditLogs(auditRes.data.logs || []);
     } catch (err) {
       console.error(err);
@@ -68,6 +72,16 @@ export default function ConsentManagerPage() {
       fetchData();
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to revoke consent');
+    }
+  };
+
+  const handleRevokeAppointmentConsent = async (appointmentId) => {
+    if (!window.confirm('Are you sure you want to revoke document-sharing consent for this consultation? The doctor will immediately lose access and any cached clinical summary will be permanently deleted.')) return;
+    try {
+      await api.post(`/appointments/${appointmentId}/consent/revoke`);
+      fetchData();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to revoke appointment consent');
     }
   };
 
@@ -152,6 +166,85 @@ export default function ConsentManagerPage() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+      </div>
+
+      {/* Feature B: Appointment-Scoped Document Sharing Consents */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center space-x-2">
+            <FileText className="w-5 h-5 text-teal-600" />
+            <span>Consultation Pre-Sharing Permissions</span>
+          </h2>
+          <span className="text-xs text-slate-400">Scoped strictly to specific appointments</span>
+        </div>
+
+        {appointmentConsents.length === 0 ? (
+          <div className="p-6 bg-white dark:bg-slate-900 rounded-3xl border text-center text-xs text-slate-400">
+            No appointment-scoped document permissions active. Documents shared at booking appear here.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {appointmentConsents.map((ac) => {
+              const isExpired = new Date() > new Date(ac.validUntil);
+              const effectiveStatus = isExpired && ac.status === 'active' ? 'expired' : ac.status;
+              return (
+                <div
+                  key={ac._id}
+                  className={`p-5 rounded-3xl border transition shadow-sm ${
+                    effectiveStatus === 'active'
+                      ? 'bg-white dark:bg-slate-900 border-teal-200 dark:border-teal-900/60'
+                      : 'bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 opacity-60'
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center space-x-2.5">
+                      <div className="w-9 h-9 rounded-xl bg-teal-100 dark:bg-teal-950 flex items-center justify-center text-teal-600 font-bold">
+                        <FileText className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-sm text-slate-900 dark:text-white">
+                          Dr. {ac.doctorId?.name || 'Assigned Physician'}
+                        </h4>
+                        <span className="text-[11px] text-teal-600 font-medium">
+                          Token #{ac.appointmentId?.tokenNumber} • {ac.appointmentId?.timeSlot}
+                        </span>
+                      </div>
+                    </div>
+
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                        effectiveStatus === 'active'
+                          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                          : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+                      }`}
+                    >
+                      {effectiveStatus}
+                    </span>
+                  </div>
+
+                  <p className="mt-3 text-[11px] text-slate-600 dark:text-slate-300 line-clamp-2 bg-slate-50 dark:bg-slate-800/50 p-2 rounded-xl">
+                    "{ac.consentText}"
+                  </p>
+
+                  <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
+                    <span className="text-[10px]">
+                      Expires: <strong>{new Date(ac.validUntil).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</strong>
+                    </span>
+                    {effectiveStatus === 'active' && ac.appointmentId && (
+                      <button
+                        onClick={() => handleRevokeAppointmentConsent(ac.appointmentId._id || ac.appointmentId)}
+                        className="px-2.5 py-1 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg font-bold text-xs flex items-center space-x-1"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Revoke Access</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

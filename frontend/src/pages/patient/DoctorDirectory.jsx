@@ -15,7 +15,17 @@ import {
   Languages,
   User,
   Activity,
-  ArrowRight
+  ArrowRight,
+  FileText,
+  Pill,
+  UploadCloud,
+  Shield,
+  Trash2,
+  Paperclip,
+  CheckSquare,
+  Square,
+  ChevronRight,
+  ChevronLeft
 } from 'lucide-react';
 
 export default function DoctorDirectory() {
@@ -46,6 +56,16 @@ export default function DoctorDirectory() {
   const [travelTime, setTravelTime] = useState(25);
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(null);
+
+  // Feature B: Pre-consultation document sharing & consent state
+  const [bookingStep, setBookingStep] = useState(1);
+  const [availableReports, setAvailableReports] = useState([]);
+  const [availableMedicines, setAvailableMedicines] = useState([]);
+  const [selectedReportIds, setSelectedReportIds] = useState([]);
+  const [selectedMedicineIds, setSelectedMedicineIds] = useState([]);
+  const [uploadFiles, setUploadFiles] = useState([]);
+  const [documentConsent, setDocumentConsent] = useState(false);
+  const [recordsTab, setRecordsTab] = useState('reports');
 
   // Initialize query params
   useEffect(() => {
@@ -96,12 +116,50 @@ export default function DoctorDirectory() {
     }
     setSelectedDoctor(doc);
     setSelectedSlot('');
+    setBookingStep(1);
+    setSelectedReportIds([]);
+    setSelectedMedicineIds([]);
+    setUploadFiles([]);
+    setDocumentConsent(false);
     setBookingSuccess(null);
+
+    // Load patient's existing records for sharing
+    api.get('/medical-reports').then(res => setAvailableReports(res.data.reports || [])).catch(() => {});
+    api.get('/medicines').then(res => setAvailableMedicines(res.data.medicines || [])).catch(() => {});
   };
 
+  const toggleSelectReport = (id) => {
+    setSelectedReportIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectMedicine = (id) => {
+    setSelectedMedicineIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleFileUpload = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    setUploadFiles(prev => [...prev, ...files]);
+  };
+
+  const removeUploadFile = (index) => {
+    setUploadFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const totalSharedCount = selectedReportIds.length + selectedMedicineIds.length + uploadFiles.length;
+
   const handleConfirmBooking = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!selectedSlot) return;
+    if (totalSharedCount > 0 && !documentConsent) {
+      alert('Please check the consent box to share selected documents with your doctor.');
+      return;
+    }
+
     setBookingLoading(true);
     try {
       const res = await api.post('/appointments', {
@@ -110,9 +168,38 @@ export default function DoctorDirectory() {
         timeSlot: selectedSlot,
         bookedForFamilyMember: familyMember,
         symptoms,
+        reasonForVisit: symptoms,
         userTravelTimeMinutes: travelTime
       });
-      setBookingSuccess(res.data.appointment);
+
+      const appt = res.data.appointment;
+
+      // Attach selected existing records
+      if (selectedReportIds.length > 0 || selectedMedicineIds.length > 0) {
+        await api.post(`/appointments/${appt._id}/documents/select`, {
+          reportIds: selectedReportIds,
+          medicineRecordIds: selectedMedicineIds
+        });
+      }
+
+      // Upload newly attached files
+      if (uploadFiles.length > 0) {
+        const formData = new FormData();
+        uploadFiles.forEach(f => formData.append('files', f));
+        await api.post(`/appointments/${appt._id}/documents/upload`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+      }
+
+      // Record patient document-sharing consent (No AI consent flag)
+      if (totalSharedCount > 0) {
+        await api.post(`/appointments/${appt._id}/consent`, {
+          consented: true,
+          consentTextVersion: '1.0'
+        });
+      }
+
+      setBookingSuccess(appt);
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to book appointment');
     } finally {
@@ -382,97 +469,379 @@ export default function DoctorDirectory() {
                 </div>
               </div>
             ) : (
-              <form onSubmit={handleConfirmBooking} className="space-y-4 text-xs mt-4">
-                {/* Date Picker */}
-                <div>
-                  <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">Appointment Date</label>
-                  <input
-                    type="date"
-                    required
-                    min={new Date().toISOString().split('T')[0]}
-                    value={bookingDate}
-                    onChange={(e) => setBookingDate(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-semibold"
-                  />
+              <div className="space-y-4 text-xs mt-3">
+                {/* Step Tabs Header */}
+                <div className="flex items-center space-x-2 border-b border-slate-100 dark:border-slate-800 pb-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setBookingStep(1)}
+                    className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl font-bold transition ${
+                      bookingStep === 1
+                        ? 'bg-teal-600 text-white shadow-sm'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                    }`}
+                  >
+                    <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px]">1</span>
+                    <span>Slot & Patient</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!selectedSlot) {
+                        alert('Please select a time slot first');
+                        return;
+                      }
+                      setBookingStep(2);
+                    }}
+                    className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl font-bold transition ${
+                      bookingStep === 2
+                        ? 'bg-teal-600 text-white shadow-sm'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                    }`}
+                  >
+                    <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px]">2</span>
+                    <span>Share Documents (Optional)</span>
+                    {totalSharedCount > 0 && (
+                      <span className="ml-1 px-1.5 py-0.2 rounded-full bg-teal-200 text-teal-900 text-[10px]">
+                        {totalSharedCount}
+                      </span>
+                    )}
+                  </button>
                 </div>
 
-                {/* Time Slots */}
-                <div>
-                  <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">Available 15-Minute Slots</label>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-36 overflow-y-auto p-1 border rounded-xl border-slate-200 dark:border-slate-700">
-                    {availableSlots.map((slot, idx) => (
+                {/* STEP 1: Slot and Patient Details */}
+                {bookingStep === 1 && (
+                  <div className="space-y-3.5">
+                    {/* Date Picker */}
+                    <div>
+                      <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">Appointment Date</label>
+                      <input
+                        type="date"
+                        required
+                        min={new Date().toISOString().split('T')[0]}
+                        value={bookingDate}
+                        onChange={(e) => setBookingDate(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-semibold"
+                      />
+                    </div>
+
+                    {/* Time Slots */}
+                    <div>
+                      <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">Available 15-Minute Slots</label>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-36 overflow-y-auto p-1 border rounded-xl border-slate-200 dark:border-slate-700">
+                        {availableSlots.map((slot, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            disabled={!slot.available}
+                            onClick={() => setSelectedSlot(slot.timeSlot)}
+                            className={`py-1.5 px-2 rounded-lg text-[11px] font-semibold border transition ${
+                              selectedSlot === slot.timeSlot
+                                ? 'bg-teal-600 text-white border-teal-600'
+                                : slot.available
+                                ? 'bg-white dark:bg-slate-800 hover:bg-teal-50 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700'
+                                : 'opacity-40 bg-slate-100 text-slate-400 cursor-not-allowed'
+                            }`}
+                          >
+                            {slot.timeSlot.split(' - ')[0]}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Booking for Family Member */}
+                    {user?.familyMembers && user.familyMembers.length > 0 && (
+                      <div>
+                        <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">Book For</label>
+                        <select
+                          value={familyMember}
+                          onChange={(e) => setFamilyMember(e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
+                        >
+                          <option value="">Myself ({user.name})</option>
+                          {user.familyMembers.map((fm, idx) => (
+                            <option key={idx} value={fm.name}>{fm.name} ({fm.relation})</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    {/* Travel Time Input */}
+                    <div>
+                      <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                        Your Travel Time to Hospital (minutes)
+                      </label>
+                      <input
+                        type="number"
+                        min="5"
+                        max="180"
+                        value={travelTime}
+                        onChange={(e) => setTravelTime(Number(e.target.value))}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
+                      />
+                      <span className="text-[10px] text-slate-400">Used by HealthMS to calculate your "Leave Now" alert.</span>
+                    </div>
+
+                    <div className="pt-2 flex justify-end">
                       <button
-                        key={idx}
                         type="button"
-                        disabled={!slot.available}
-                        onClick={() => setSelectedSlot(slot.timeSlot)}
-                        className={`py-1.5 px-2 rounded-lg text-[11px] font-semibold border transition ${
-                          selectedSlot === slot.timeSlot
-                            ? 'bg-teal-600 text-white border-teal-600'
-                            : slot.available
-                            ? 'bg-white dark:bg-slate-800 hover:bg-teal-50 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700'
-                            : 'opacity-40 bg-slate-100 text-slate-400 cursor-not-allowed'
-                        }`}
+                        disabled={!selectedSlot}
+                        onClick={() => setBookingStep(2)}
+                        className="w-full py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl shadow-md transition disabled:opacity-50 flex items-center justify-center space-x-1.5"
                       >
-                        {slot.timeSlot.split(' - ')[0]}
+                        <span>Next: Share Documents (Optional)</span>
+                        <ChevronRight className="w-4 h-4" />
                       </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Booking for Family Member */}
-                {user?.familyMembers && user.familyMembers.length > 0 && (
-                  <div>
-                    <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">Book For</label>
-                    <select
-                      value={familyMember}
-                      onChange={(e) => setFamilyMember(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
-                    >
-                      <option value="">Myself ({user.name})</option>
-                      {user.familyMembers.map((fm, idx) => (
-                        <option key={idx} value={fm.name}>{fm.name} ({fm.relation})</option>
-                      ))}
-                    </select>
+                    </div>
                   </div>
                 )}
 
-                {/* Travel Time Input */}
-                <div>
-                  <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                    Your Travel Time to Hospital (minutes)
-                  </label>
-                  <input
-                    type="number"
-                    min="5"
-                    max="180"
-                    value={travelTime}
-                    onChange={(e) => setTravelTime(Number(e.target.value))}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
-                  />
-                  <span className="text-[10px] text-slate-400">Used by HealthMS to calculate your "Leave Now" alert.</span>
-                </div>
+                {/* STEP 2: Pre-Consultation Document Sharing & Consent */}
+                {bookingStep === 2 && (
+                  <div className="space-y-4">
+                    {/* Symptoms / Reason for Visit */}
+                    <div>
+                      <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                        Reason for Visit / Symptoms (Optional)
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={symptoms}
+                        onChange={(e) => setSymptoms(e.target.value)}
+                        placeholder="Briefly describe what brings you in or any recent symptoms..."
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
+                      />
+                    </div>
 
-                {/* Symptoms */}
-                <div>
-                  <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">Symptoms or Notes</label>
-                  <textarea
-                    rows={2}
-                    value={symptoms}
-                    onChange={(e) => setSymptoms(e.target.value)}
-                    placeholder="Briefly describe your symptoms or reason for visit..."
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
-                  />
-                </div>
+                    {/* Document Selection Tabs */}
+                    <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-slate-800 dark:text-slate-200 flex items-center space-x-1.5">
+                          <Paperclip className="w-3.5 h-3.5 text-teal-600" />
+                          <span>Attach Records For Dr. {selectedDoctor?.name || selectedDoctor?.user?.name}</span>
+                        </span>
+                        <span className="text-[10px] text-slate-400">
+                          {totalSharedCount} document(s) attached
+                        </span>
+                      </div>
 
-                <button
-                  type="submit"
-                  disabled={bookingLoading || !selectedSlot}
-                  className="w-full py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl shadow-lg shadow-teal-600/30 transition disabled:opacity-50"
-                >
-                  {bookingLoading ? 'Generating Token...' : `Confirm & Generate Token (₹${selectedDoctor.consultationFee})`}
-                </button>
-              </form>
+                      {/* Subtabs: Existing Reports, Medicines, Upload New */}
+                      <div className="flex space-x-1 border-b border-slate-200 dark:border-slate-700 pb-2">
+                        <button
+                          type="button"
+                          onClick={() => setRecordsTab('reports')}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition ${
+                            recordsTab === 'reports'
+                              ? 'bg-white dark:bg-slate-700 text-teal-700 dark:text-teal-300 shadow-xs'
+                              : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                          }`}
+                        >
+                          Medical Reports ({availableReports.length})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setRecordsTab('medicines')}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition ${
+                            recordsTab === 'medicines'
+                              ? 'bg-white dark:bg-slate-700 text-teal-700 dark:text-teal-300 shadow-xs'
+                              : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                          }`}
+                        >
+                          My Medicines ({availableMedicines.length})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setRecordsTab('upload')}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition ${
+                            recordsTab === 'upload'
+                              ? 'bg-white dark:bg-slate-700 text-teal-700 dark:text-teal-300 shadow-xs'
+                              : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                          }`}
+                        >
+                          + Upload Files ({uploadFiles.length})
+                        </button>
+                      </div>
+
+                      {/* Tab 1: Available Medical Reports */}
+                      {recordsTab === 'reports' && (
+                        <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                          {availableReports.length === 0 ? (
+                            <p className="text-[11px] text-slate-400 text-center py-3">No existing medical reports saved in your profile.</p>
+                          ) : (
+                            availableReports.map(rep => {
+                              const isSelected = selectedReportIds.includes(rep._id);
+                              return (
+                                <div
+                                  key={rep._id}
+                                  onClick={() => toggleSelectReport(rep._id)}
+                                  className={`p-2 rounded-xl border flex items-center justify-between cursor-pointer transition ${
+                                    isSelected
+                                      ? 'bg-teal-50 dark:bg-teal-950/40 border-teal-400'
+                                      : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                                  }`}
+                                >
+                                  <div className="flex items-center space-x-2">
+                                    {isSelected ? (
+                                      <CheckSquare className="w-4 h-4 text-teal-600 flex-shrink-0" />
+                                    ) : (
+                                      <Square className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                                    )}
+                                    <div>
+                                      <span className="font-bold text-slate-800 dark:text-slate-200 block truncate max-w-[200px]">
+                                        {rep.title}
+                                      </span>
+                                      <span className="text-[10px] text-slate-400">
+                                        {rep.reportType} • {new Date(rep.reportDate || rep.createdAt).toLocaleDateString()}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <FileText className="w-4 h-4 text-slate-400" />
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      )}
+
+                      {/* Tab 2: Available Medicines */}
+                      {recordsTab === 'medicines' && (
+                        <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                          {availableMedicines.length === 0 ? (
+                            <p className="text-[11px] text-slate-400 text-center py-3">No medicines saved in "My Medicines".</p>
+                          ) : (
+                            availableMedicines.map(med => {
+                              const isSelected = selectedMedicineIds.includes(med._id);
+                              return (
+                                <div
+                                  key={med._id}
+                                  onClick={() => toggleSelectMedicine(med._id)}
+                                  className={`p-2 rounded-xl border flex items-center justify-between cursor-pointer transition ${
+                                    isSelected
+                                      ? 'bg-teal-50 dark:bg-teal-950/40 border-teal-400'
+                                      : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                                  }`}
+                                >
+                                  <div className="flex items-center space-x-2">
+                                    {isSelected ? (
+                                      <CheckSquare className="w-4 h-4 text-teal-600 flex-shrink-0" />
+                                    ) : (
+                                      <Square className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                                    )}
+                                    <div>
+                                      <span className="font-bold text-slate-800 dark:text-slate-200 block truncate max-w-[200px]">
+                                        {med.brandName} {med.strength}
+                                      </span>
+                                      <span className="text-[10px] text-slate-400">
+                                        {med.dosageForm} • {med.status.replace('_', ' ')}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <Pill className="w-4 h-4 text-slate-400" />
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      )}
+
+                      {/* Tab 3: Upload New Files */}
+                      {recordsTab === 'upload' && (
+                        <div className="space-y-2">
+                          <label className="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl p-3 text-center block cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/80 transition">
+                            <UploadCloud className="w-6 h-6 text-teal-600 mx-auto mb-1" />
+                            <span className="font-bold text-slate-700 dark:text-slate-300 block">
+                              Click or Drag files to attach (PDF, JPG, PNG)
+                            </span>
+                            <span className="text-[10px] text-slate-400 block mt-0.5">
+                              Uploaded files will automatically sync to your Medical Reports & Health Timeline
+                            </span>
+                            <input
+                              type="file"
+                              multiple
+                              accept=".pdf,image/png,image/jpeg,image/webp"
+                              onChange={handleFileUpload}
+                              className="hidden"
+                            />
+                          </label>
+
+                          {uploadFiles.length > 0 && (
+                            <div className="space-y-1 max-h-28 overflow-y-auto">
+                              {uploadFiles.map((file, idx) => (
+                                <div key={idx} className="flex items-center justify-between p-1.5 rounded-lg bg-white dark:bg-slate-800 border text-[11px]">
+                                  <span className="truncate max-w-[220px] font-medium text-slate-800 dark:text-slate-200">{file.name}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeUploadFile(idx)}
+                                    className="text-rose-500 hover:text-rose-700 p-0.5"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Feature B2: Single Required Final Consent Checkbox */}
+                    {totalSharedCount > 0 ? (
+                      <div className="p-3 bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-2xl space-y-2">
+                        <div className="flex items-start space-x-2">
+                          <Shield className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <span className="font-bold text-amber-900 dark:text-amber-200 block text-[11px]">
+                              Consultation Document Sharing Scope:
+                            </span>
+                            <p className="text-[10px] text-amber-800/80 dark:text-amber-300/80 leading-relaxed">
+                              Doctor: <strong>Dr. {selectedDoctor?.name || selectedDoctor?.user?.name}</strong> • Documents: <strong>{totalSharedCount} item(s)</strong> • Purpose: <strong>For this appointment's consultation only</strong>.
+                            </p>
+                          </div>
+                        </div>
+
+                        <label className="flex items-start space-x-2.5 pt-1.5 border-t border-amber-200/60 dark:border-amber-800/60 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={documentConsent}
+                            onChange={(e) => setDocumentConsent(e.target.checked)}
+                            className="mt-0.5 rounded text-teal-600 focus:ring-teal-500 w-4 h-4 cursor-pointer"
+                          />
+                          <span className="text-[11px] font-medium text-slate-800 dark:text-slate-200 leading-snug">
+                            I consent to share the selected documents with Dr. {selectedDoctor?.name || selectedDoctor?.user?.name} for this consultation. The doctor may use assistive software to help review them.
+                          </span>
+                        </label>
+                      </div>
+                    ) : (
+                      <div className="p-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl text-[11px] text-slate-500 text-center">
+                        No documents attached. You can proceed directly with your token generation.
+                      </div>
+                    )}
+
+                    {/* Action Buttons */}
+                    <div className="flex space-x-2 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setBookingStep(1)}
+                        className="px-4 py-2.5 border rounded-xl text-slate-600 dark:text-slate-300 font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center space-x-1"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                        <span>Back</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={bookingLoading || (totalSharedCount > 0 && !documentConsent)}
+                        onClick={handleConfirmBooking}
+                        className="flex-1 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl shadow-lg shadow-teal-600/30 transition disabled:opacity-50"
+                      >
+                        {bookingLoading
+                          ? 'Generating Token...'
+                          : `Confirm & Generate Token (₹${selectedDoctor.consultationFee})`}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>

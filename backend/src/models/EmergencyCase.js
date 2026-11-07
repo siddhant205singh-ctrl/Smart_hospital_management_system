@@ -40,6 +40,11 @@ const emergencyCaseSchema = new mongoose.Schema({
     existingConditions: [String],
     currentMedicines: [String]
   },
+  medicinesAutofillSource: {
+    type: String,
+    enum: ['user_profile', 'medicine_records', 'manual'],
+    default: 'medicine_records'
+  },
   status: {
     type: String,
     enum: ['waiting', 'under_treatment', 'stabilized', 'admitted', 'discharged'],

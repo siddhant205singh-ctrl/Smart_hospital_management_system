@@ -34,6 +34,14 @@ const appointmentSchema = new mongoose.Schema({
     spo2: Number
   },
   symptoms: { type: String, default: '' },
+  reasonForVisit: { type: String, default: '' },
+  documentsCount: { type: Number, default: 0 },
+  consentStatus: { 
+    type: String, 
+    enum: ['none', 'active', 'revoked', 'expired'], 
+    default: 'none',
+    index: true 
+  },
   doctorNotes: { type: String, default: '' },
   prescription: { type: String, default: '' }
 }, {
