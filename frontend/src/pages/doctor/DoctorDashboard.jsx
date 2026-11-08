@@ -72,6 +72,8 @@ export default function DoctorDashboard() {
   const [aiSummary, setAiSummary] = useState(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryError, setSummaryError] = useState('');
+  const [docSummaryLoadingId, setDocSummaryLoadingId] = useState(null);
+  const [batchSummaryLoading, setBatchSummaryLoading] = useState(false);
 
   // Fetch doctor record
   useEffect(() => {
@@ -211,6 +213,66 @@ export default function DoctorDashboard() {
     const pinSnippet = `\n[Document Verified: ${doc.title} (${doc.reportType || doc.documentType})]`;
     if (!consultNotes.includes(pinSnippet)) {
       setConsultNotes(prev => prev ? prev + pinSnippet : pinSnippet.trim());
+      showToast('Document reference pinned to notes', 'success');
+    }
+  };
+
+  // Generate individual AI summary for a specific document
+  const handleGenerateDocSummary = async (appointmentId, docId, force = false) => {
+    setDocSummaryLoadingId(docId);
+    try {
+      const res = await api.post(`/consultations/${appointmentId}/documents/${docId}/summary`, {
+        language: summaryLanguage,
+        forceRegenerate: force
+      });
+      const summaryText = res.data.aiSummary;
+      setPatientDocsData(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          documents: prev.documents.map(d =>
+            d._id === docId ? { ...d, aiSummary: summaryText, aiSummaryGeneratedAt: res.data.aiSummaryGeneratedAt } : d
+          )
+        };
+      });
+      setViewingDoc(prev => (prev && prev._id === docId ? { ...prev, aiSummary: summaryText } : prev));
+      showToast('AI Report Summary generated!', 'success');
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Failed to generate report summary', 'error');
+    } finally {
+      setDocSummaryLoadingId(null);
+    }
+  };
+
+  // Batch generate AI summaries for all attached reports
+  const handleGenerateAllDocsSummary = async (appointmentId) => {
+    setBatchSummaryLoading(true);
+    try {
+      const res = await api.post(`/consultations/${appointmentId}/documents/summarize-all`, {
+        language: summaryLanguage
+      });
+      const summaries = res.data.summaries || [];
+      const summaryMap = new Map(summaries.map(s => [s.docId, s.aiSummary]));
+      setPatientDocsData(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          documents: prev.documents.map(d =>
+            summaryMap.has(d._id) ? { ...d, aiSummary: summaryMap.get(d._id) } : d
+          )
+        };
+      });
+      setViewingDoc(prev => {
+        if (prev && summaryMap.has(prev._id)) {
+          return { ...prev, aiSummary: summaryMap.get(prev._id) };
+        }
+        return prev;
+      });
+      showToast(`AI Summaries ready for attached report(s)!`, 'success');
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Failed to summarize all reports', 'error');
+    } finally {
+      setBatchSummaryLoading(false);
     }
   };
 
@@ -448,11 +510,27 @@ export default function DoctorDashboard() {
                         <span>{loadingDocs ? 'Loading Records...' : 'Load Patient Documents'}</span>
                       </button>
                     ) : (
-                      <div className="flex items-center space-x-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center space-x-1">
                           <CheckCircle className="w-3.5 h-3.5" />
                           <span>Consent Verified</span>
                         </span>
+                        {patientDocsData?.documents?.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => handleGenerateAllDocsSummary(currentPatient._id)}
+                            disabled={batchSummaryLoading}
+                            className="px-2.5 py-1 rounded-xl text-[10px] font-bold bg-purple-100 hover:bg-purple-200 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 dark:hover:bg-purple-900/60 border border-purple-200 dark:border-purple-800 transition flex items-center space-x-1 disabled:opacity-50"
+                            title="Generate AI summary for all attached reports"
+                          >
+                            {batchSummaryLoading ? (
+                              <Loader2 className="w-3 h-3 animate-spin text-purple-600 dark:text-purple-400" />
+                            ) : (
+                              <Sparkles className="w-3 h-3 text-purple-600 dark:text-purple-400" />
+                            )}
+                            <span>{batchSummaryLoading ? 'Summarizing All...' : 'Summarize All Reports'}</span>
+                          </button>
+                        )}
                         <button
                           onClick={() => handleLoadPatientDocuments(currentPatient._id)}
                           title="Refresh documents"
@@ -492,14 +570,22 @@ export default function DoctorDashboard() {
                                     {doc.reportType || doc.documentType}
                                   </span>
                                 </div>
-                                {doc.isReviewedByDoctor && (
-                                  <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                                    Reviewed
-                                  </span>
-                                )}
+                                <div className="flex items-center space-x-1">
+                                  {doc.aiSummary && (
+                                    <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 flex items-center space-x-0.5">
+                                      <Sparkles className="w-2.5 h-2.5" />
+                                      <span>AI</span>
+                                    </span>
+                                  )}
+                                  {doc.isReviewedByDoctor && (
+                                    <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                                      Reviewed
+                                    </span>
+                                  )}
+                                </div>
                               </div>
 
-                              <div className="flex items-center space-x-1.5 pt-1 border-t border-slate-100 dark:border-slate-800 text-[11px]">
+                              <div className="flex flex-wrap items-center gap-1 pt-1 border-t border-slate-100 dark:border-slate-800 text-[11px]">
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -511,6 +597,24 @@ export default function DoctorDashboard() {
                                 >
                                   <Eye className="w-3 h-3" />
                                   <span>View</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleGenerateDocSummary(currentPatient._id, doc._id, Boolean(doc.aiSummary))}
+                                  disabled={docSummaryLoadingId === doc._id}
+                                  className={`py-1 px-2 rounded-lg font-semibold border transition flex items-center space-x-1 ${
+                                    doc.aiSummary
+                                      ? 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800'
+                                      : 'bg-indigo-50/70 hover:bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800'
+                                  }`}
+                                  title={doc.aiSummary ? "Regenerate AI Report Summary" : "Generate AI Summary for this report"}
+                                >
+                                  {docSummaryLoadingId === doc._id ? (
+                                    <Loader2 className="w-3 h-3 animate-spin text-purple-600" />
+                                  ) : (
+                                    <Sparkles className="w-3 h-3 text-purple-600 dark:text-purple-400" />
+                                  )}
+                                  <span>{docSummaryLoadingId === doc._id ? 'Analyzing...' : doc.aiSummary ? 'AI Summary' : 'AI Summary'}</span>
                                 </button>
                                 <button
                                   type="button"
@@ -533,6 +637,36 @@ export default function DoctorDashboard() {
                                   <Pin className="w-3 h-3" />
                                 </button>
                               </div>
+
+                              {/* Per-Report AI Summary block */}
+                              {doc.aiSummary && (
+                                <div className="mt-1.5 p-2 rounded-xl bg-purple-50/70 dark:bg-purple-950/30 border border-purple-100 dark:border-purple-900/40 text-xs">
+                                  <div className="flex items-center justify-between mb-1">
+                                    <span className="font-bold text-[10px] text-purple-900 dark:text-purple-300 flex items-center space-x-1">
+                                      <Sparkles className="w-2.5 h-2.5 text-purple-600" />
+                                      <span>AI Report Summary</span>
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const pinSnippet = `\n[AI Summary - ${doc.title}]:\n${doc.aiSummary}`;
+                                        if (!consultNotes.includes(pinSnippet)) {
+                                          setConsultNotes(prev => prev ? prev + pinSnippet : pinSnippet.trim());
+                                          showToast('Summary pinned to clinical notes!', 'success');
+                                        }
+                                      }}
+                                      className="text-[9px] text-purple-700 dark:text-purple-300 hover:underline flex items-center space-x-0.5"
+                                      title="Pin this summary to consultation notes"
+                                    >
+                                      <Pin className="w-2.5 h-2.5" />
+                                      <span>Pin</span>
+                                    </button>
+                                  </div>
+                                  <div className="text-[10px] text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed max-h-24 overflow-y-auto pr-1">
+                                    {doc.aiSummary}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -903,6 +1037,63 @@ export default function DoctorDashboard() {
                 >
                   <X className="w-4 h-4" />
                 </button>
+              </div>
+            </div>
+
+            {/* Per-Report AI Summary Banner inside Document Viewer */}
+            <div className="px-4 py-2.5 bg-purple-50/70 dark:bg-purple-950/40 border-b border-purple-200/60 dark:border-purple-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+              <div className="flex items-start space-x-2 flex-1">
+                <Sparkles className="w-4 h-4 text-purple-600 dark:text-purple-400 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <span className="font-bold text-[11px] text-purple-900 dark:text-purple-200 block">
+                    AI Clinical Report Summary
+                  </span>
+                  {viewingDoc.aiSummary ? (
+                    <div className="text-[11px] text-slate-700 dark:text-slate-300 whitespace-pre-wrap mt-0.5 leading-relaxed max-h-24 overflow-y-auto">
+                      {viewingDoc.aiSummary}
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-slate-500 italic mt-0.5">
+                      No AI summary generated for this report yet. Click "Generate Summary" to produce an instant clinical analysis.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-1.5 flex-shrink-0 self-end sm:self-center">
+                {viewingDoc.aiSummary && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const pinSnippet = `\n[AI Summary - ${viewingDoc.title}]:\n${viewingDoc.aiSummary}`;
+                      if (!consultNotes.includes(pinSnippet)) {
+                        setConsultNotes(prev => prev ? prev + pinSnippet : pinSnippet.trim());
+                        showToast('Summary pinned to clinical notes!', 'success');
+                      }
+                    }}
+                    className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white dark:bg-slate-800 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 hover:bg-purple-100 flex items-center space-x-1 shadow-xs"
+                    title="Pin this summary to consultation notes"
+                  >
+                    <Pin className="w-3 h-3" />
+                    <span>Pin to Notes</span>
+                  </button>
+                )}
+                {currentPatient && (
+                  <button
+                    type="button"
+                    onClick={() => handleGenerateDocSummary(currentPatient._id, viewingDoc._id, Boolean(viewingDoc.aiSummary))}
+                    disabled={docSummaryLoadingId === viewingDoc._id}
+                    className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-purple-600 hover:bg-purple-700 text-white flex items-center space-x-1 disabled:opacity-50 shadow-xs"
+                    title={viewingDoc.aiSummary ? "Regenerate AI summary for this report" : "Generate AI summary for this report"}
+                  >
+                    {docSummaryLoadingId === viewingDoc._id ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <Sparkles className="w-3 h-3" />
+                    )}
+                    <span>{docSummaryLoadingId === viewingDoc._id ? 'Analyzing...' : viewingDoc.aiSummary ? 'Regenerate' : 'Generate Summary'}</span>
+                  </button>
+                )}
               </div>
             </div>
 

@@ -5,7 +5,9 @@ const {
   viewDocumentFile,
   markDocumentReviewed,
   generateDoctorSummary,
-  pinSummaryToNotes
+  pinSummaryToNotes,
+  generateSingleDocumentSummary,
+  generateAllDocumentsSummary
 } = require('../controllers/consultationDocumentController');
 const { protect, optionalProtect } = require('../middleware/authMiddleware');
 
@@ -13,6 +15,8 @@ const { protect, optionalProtect } = require('../middleware/authMiddleware');
 router.get('/:id/documents', protect, loadDoctorConsultationDocuments);
 router.get('/:id/documents/:docId/view', optionalProtect, viewDocumentFile);
 router.post('/:id/documents/:docId/review', protect, markDocumentReviewed);
+router.post('/:id/documents/:docId/summary', protect, generateSingleDocumentSummary);
+router.post('/:id/documents/summarize-all', protect, generateAllDocumentsSummary);
 router.post('/:id/documents/summary', protect, generateDoctorSummary);
 router.post('/:id/documents/summary/regenerate', protect, (req, res, next) => {
   req.body.forceRegenerate = true;

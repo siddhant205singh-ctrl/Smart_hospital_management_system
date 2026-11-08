@@ -9,7 +9,9 @@ const appointmentDocumentShareSchema = new mongoose.Schema({
   reportType: { type: String, default: 'other' }, // e.g. blood_test, ecg, medicine
   fileUrl: { type: String, default: '' },
   isReviewedByDoctor: { type: Boolean, default: false },
-  reviewedAt: { type: Date }
+  reviewedAt: { type: Date },
+  aiSummary: { type: String, default: '' },
+  aiSummaryGeneratedAt: { type: Date }
 }, {
   timestamps: true
 });

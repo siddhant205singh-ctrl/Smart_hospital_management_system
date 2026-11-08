@@ -56,6 +56,26 @@ const generateSignedUrlToken = (documentId, appointmentId, doctorId, expiresInMi
   return Buffer.from(JSON.stringify({ payload, hmac })).toString('base64url');
 };
 
+const GEMINI_MODELS = ['gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-flash-latest'];
+
+async function callGemini(promptText) {
+  if (!process.env.GEMINI_API_KEY) return null;
+  for (const model of GEMINI_MODELS) {
+    try {
+      const res = await axios.post(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`,
+        { contents: [{ parts: [{ text: promptText }] }] },
+        { headers: { 'Content-Type': 'application/json' }, timeout: 15000 }
+      );
+      const text = res.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (text) return text;
+    } catch (err) {
+      console.warn(`[Gemini (${model}) failed]:`, err.response?.data?.error?.message || err.message);
+    }
+  }
+  return null;
+}
+
 // @route   GET /api/appointments/:id/documents
 // @desc    List attached documents for an appointment
 exports.getAppointmentDocuments = async (req, res, next) => {
@@ -602,9 +622,23 @@ exports.loadDoctorConsultationDocuments = async (req, res, next) => {
       await appointment.save();
     }
 
-    // Generate signed tokens for each document
-    const documentsWithSignedTokens = shares.map(doc => {
+    // Generate signed tokens for each document & attach individual AI summary
+    const documentsWithSignedTokens = await Promise.all(shares.map(async doc => {
       const signedToken = generateSignedUrlToken(doc._id, appointment._id, doctorRecord?._id || req.user._id);
+      
+      let summaryText = doc.aiSummary || '';
+      if (!summaryText && doc.documentType === 'medical_report') {
+        try {
+          const rep = await MedicalReport.findById(doc.documentId).select('notes aiSummaryCache');
+          if (rep?.aiSummaryCache?.keyFindings?.length) {
+            summaryText = rep.aiSummaryCache.keyFindings.join('\n• ');
+            if (!summaryText.startsWith('•')) summaryText = '• ' + summaryText;
+          } else if (rep?.notes) {
+            summaryText = `• Diagnostic Note: ${rep.notes}`;
+          }
+        } catch (e) {}
+      }
+
       return {
         _id: doc._id,
         title: doc.title,
@@ -612,9 +646,11 @@ exports.loadDoctorConsultationDocuments = async (req, res, next) => {
         reportType: doc.reportType,
         fileUrl: doc.fileUrl,
         isReviewedByDoctor: doc.isReviewedByDoctor,
+        aiSummary: summaryText,
+        aiSummaryGeneratedAt: doc.aiSummaryGeneratedAt,
         signedViewUrl: `/api/consultations/${appointment._id}/documents/${doc._id}/view?token=${signedToken}`
       };
-    });
+    }));
 
     // Notify patient in real time that their documents were opened
     const io = req.app.get('io');
@@ -906,15 +942,11 @@ STRICT CLINICAL RULES:
 
     if (process.env.GEMINI_API_KEY) {
       try {
-        const geminiRes = await axios.post(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
-          { contents: [{ parts: [{ text: promptText }] }] },
-          { headers: { 'Content-Type': 'application/json' }, timeout: 15000 }
-        );
-
-        let raw = geminiRes.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        raw = raw.replace(/```json/gi, '').replace(/```/gi, '').trim();
-        summaryPayload = JSON.parse(raw);
+        let raw = await callGemini(promptText);
+        if (raw) {
+          raw = raw.replace(/```json/gi, '').replace(/```/gi, '').trim();
+          summaryPayload = JSON.parse(raw);
+        }
       } catch (geminiErr) {
         console.warn('[Gemini Consultation Summary Fallback]:', geminiErr.message);
       }
@@ -1073,6 +1105,237 @@ exports.getEmergencyMedicines = async (req, res, next) => {
       caseNumber: emergencyCase.caseNumber,
       medicinesCount: medicines.length,
       medicines
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @route   POST /api/consultations/:id/documents/:docId/summary
+// @desc    Doctor console: Generate or fetch AI summary for an individual attached report
+exports.generateSingleDocumentSummary = async (req, res, next) => {
+  try {
+    const { id: appointmentId, docId } = req.params;
+    const { language = 'en', forceRegenerate = false } = req.body;
+
+    const appointment = await Appointment.findById(appointmentId)
+      .populate('doctorId')
+      .populate('patientId', 'name gender dateOfBirth');
+
+    if (!appointment) {
+      return res.status(404).json({ error: 'Appointment not found.' });
+    }
+
+    const doctorRecord = await Doctor.findOne({ userId: req.user._id });
+    const isAssignedDoctor = doctorRecord && doctorRecord._id.toString() === appointment.doctorId?._id?.toString();
+    const isAdmin = ['super_admin', 'hospital_admin'].includes(req.user.role);
+
+    if (!isAssignedDoctor && !isAdmin) {
+      return res.status(403).json({ error: 'Access denied. Clinical report summaries are reserved for the consulting physician or hospital admin.' });
+    }
+
+    const consent = await AppointmentConsent.findOne({ appointmentId });
+    if (!consent || consent.status !== 'active') {
+      return res.status(403).json({ error: 'Cannot summarize: Patient consent is inactive or has been revoked.' });
+    }
+
+    const docShare = await AppointmentDocumentShare.findOne({ _id: docId, appointmentId });
+    if (!docShare) {
+      return res.status(404).json({ error: 'Attached document not found.' });
+    }
+
+    // Return cached summary if available and not forced
+    if (docShare.aiSummary && !forceRegenerate) {
+      return res.json({
+        success: true,
+        cached: true,
+        docId: docShare._id,
+        title: docShare.title,
+        aiSummary: docShare.aiSummary,
+        aiSummaryGeneratedAt: docShare.aiSummaryGeneratedAt
+      });
+    }
+
+    let reportMetadata = {
+      title: docShare.title,
+      type: docShare.reportType || docShare.documentType,
+      facility: 'Diagnostic Center',
+      date: 'Recent',
+      doctor: '',
+      notes: ''
+    };
+
+    if (docShare.documentType === 'medical_report') {
+      const rep = await MedicalReport.findById(docShare.documentId);
+      if (rep) {
+        reportMetadata.facility = rep.issuingFacility || 'Diagnostic Facility';
+        reportMetadata.date = rep.reportDate ? rep.reportDate.toISOString().split('T')[0] : 'Recent';
+        reportMetadata.doctor = rep.doctorName || '';
+        reportMetadata.notes = rep.notes || '';
+      }
+    } else {
+      const med = await MedicineRecord.findById(docShare.documentId);
+      if (med) {
+        reportMetadata.facility = 'Patient Records';
+        reportMetadata.notes = `Prescribed/Reported: ${med.name} (${med.strength || ''} ${med.dosage || ''}) - ${med.frequency || 'Daily'}. Status: ${med.status}. Reason: ${med.reason || 'None stated'}`;
+      }
+    }
+
+    const langInstruction = language === 'hi'
+      ? 'Output the summary in professional, natural Hindi (हिन्दी) suited for a medical doctor.'
+      : 'Output in concise, professional clinical English.';
+
+    const promptText = `You are an expert clinical medical documentation summarizer assisting an attending physician during an OPD consultation.
+Analyze the following attached medical document and produce an assistive clinical summary (2 to 4 bullet points):
+
+Document Title: "${reportMetadata.title}"
+Report Category: ${reportMetadata.type}
+Issuing Facility / Laboratory: ${reportMetadata.facility}
+Report Date: ${reportMetadata.date}
+${reportMetadata.doctor ? `Attending/Ordering Doctor: ${reportMetadata.doctor}` : ''}
+${reportMetadata.notes ? `Clinical Observations / Notes: ${reportMetadata.notes}` : ''}
+Patient Reason for Current Visit: ${appointment.reasonForVisit || appointment.symptoms || 'General Consultation'}
+
+${langInstruction}
+
+CLINICAL CRITERIA:
+1. Identify the core test or medical assessment conducted.
+2. Highlight significant lab parameters, vital indicators, normal ranges, or abnormal findings noted.
+3. State why this record is clinically relevant to today's consultation.
+4. Keep it direct and professional. Use markdown bullet points ("• "). Do not add conversational filler or generic disclaimers.`;
+
+    let aiSummary = null;
+    if (process.env.GEMINI_API_KEY) {
+      aiSummary = await callGemini(promptText);
+    }
+
+    // Deterministic clinical fallback if Gemini is offline
+    if (!aiSummary) {
+      const isHindi = language === 'hi';
+      aiSummary = isHindi
+        ? `• दस्तावेज़: ${reportMetadata.title} (${reportMetadata.type.replace('_', ' ')})\n• प्रयोगशाला/सुविधा: ${reportMetadata.facility} (दिनांक: ${reportMetadata.date})\n• नैदानिक विवरण: ${reportMetadata.notes || 'रोगी द्वारा अपलोड किया गया मेडिकल रिकॉर्ड'}\n• चिकित्सक सुझाव: वर्तमान परामर्श (${appointment.reasonForVisit || 'परामर्श'}) के साथ सह-संबंधित करें।`
+        : `• Document: ${reportMetadata.title} (${reportMetadata.type.replace('_', ' ')}) from ${reportMetadata.facility}\n• Clinical Record: ${reportMetadata.notes || 'Diagnostic documentation provided by patient'}\n• Diagnostic Relevance: Correlate findings with today's reason for visit (${appointment.reasonForVisit || appointment.symptoms || 'Consultation'}). Check full file in viewer.`;
+    }
+
+    // Persist summary in AppointmentDocumentShare
+    docShare.aiSummary = aiSummary;
+    docShare.aiSummaryGeneratedAt = new Date();
+    await docShare.save();
+
+    // Also update MedicalReport cache if applicable
+    if (docShare.documentType === 'medical_report') {
+      try {
+        await MedicalReport.findByIdAndUpdate(docShare.documentId, {
+          'aiSummaryCache.keyFindings': [aiSummary],
+          'aiSummaryCache.analyzedAt': new Date()
+        });
+      } catch (e) {}
+    }
+
+    await logAudit({
+      userId: req.user._id,
+      userName: req.user.name,
+      userRole: req.user.role,
+      action: forceRegenerate ? 'DOCTOR_DOCUMENT_AI_SUMMARY_REGENERATED' : 'DOCTOR_DOCUMENT_AI_SUMMARY_GENERATED',
+      resourceType: 'AppointmentDocumentShare',
+      resourceId: docShare._id,
+      patientId: appointment.patientId._id,
+      details: { docId: docShare._id, title: docShare.title },
+      req
+    });
+
+    res.json({
+      success: true,
+      docId: docShare._id,
+      title: docShare.title,
+      aiSummary,
+      aiSummaryGeneratedAt: docShare.aiSummaryGeneratedAt
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @route   POST /api/consultations/:id/documents/summarize-all
+// @desc    Doctor console: Generate AI summaries for all attached reports in this consultation
+exports.generateAllDocumentsSummary = async (req, res, next) => {
+  try {
+    const appointmentId = req.params.id;
+    const { language = 'en', forceRegenerate = false } = req.body;
+
+    const appointment = await Appointment.findById(appointmentId)
+      .populate('doctorId')
+      .populate('patientId', 'name gender dateOfBirth');
+
+    if (!appointment) {
+      return res.status(404).json({ error: 'Appointment not found.' });
+    }
+
+    const consent = await AppointmentConsent.findOne({ appointmentId });
+    if (!consent || consent.status !== 'active') {
+      return res.status(403).json({ error: 'Cannot summarize: Patient consent is inactive or has been revoked.' });
+    }
+
+    const shares = await AppointmentDocumentShare.find({ appointmentId });
+    if (shares.length === 0) {
+      return res.status(400).json({ error: 'No documents attached to summarize.' });
+    }
+
+    const summaries = [];
+    for (const docShare of shares) {
+      if (docShare.aiSummary && !forceRegenerate) {
+        summaries.push({
+          docId: docShare._id,
+          title: docShare.title,
+          aiSummary: docShare.aiSummary,
+          cached: true
+        });
+        continue;
+      }
+
+      let reportMetadata = {
+        title: docShare.title,
+        type: docShare.reportType || docShare.documentType,
+        facility: 'Diagnostic Center',
+        notes: ''
+      };
+
+      if (docShare.documentType === 'medical_report') {
+        const rep = await MedicalReport.findById(docShare.documentId);
+        if (rep) {
+          reportMetadata.facility = rep.issuingFacility || 'Diagnostic Facility';
+          reportMetadata.notes = rep.notes || '';
+        }
+      }
+
+      const promptText = `Provide a concise, 2-3 bullet point clinical summary for this attached report:
+Title: ${reportMetadata.title}
+Type: ${reportMetadata.type}
+Facility: ${reportMetadata.facility}
+Observations: ${reportMetadata.notes || 'Standard patient record'}
+Patient Reason for Visit: ${appointment.reasonForVisit || appointment.symptoms || 'General Consultation'}
+Language: ${language === 'hi' ? 'Hindi' : 'English'}`;
+
+      let aiSummary = await callGemini(promptText);
+      if (!aiSummary) {
+        aiSummary = `• ${reportMetadata.title} (${reportMetadata.type.replace('_', ' ')}): ${reportMetadata.notes || 'Review clinical parameters with patient during consultation.'}`;
+      }
+
+      docShare.aiSummary = aiSummary;
+      docShare.aiSummaryGeneratedAt = new Date();
+      await docShare.save();
+
+      summaries.push({
+        docId: docShare._id,
+        title: docShare.title,
+        aiSummary: docShare.aiSummary,
+        cached: false
+      });
+    }
+
+    res.json({
+      success: true,
+      summaries
     });
   } catch (error) {
     next(error);

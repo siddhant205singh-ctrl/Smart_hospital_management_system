@@ -330,11 +330,13 @@ STRICT CLINICAL RULES:
         });
       }
 
-      // First attempt
-      for (let attempt = 1; attempt <= 2 && !parsedResult; attempt++) {
+      // Model attempts
+      const scanModels = ['gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-flash-latest'];
+      for (const m of scanModels) {
+        if (parsedResult) break;
         try {
           const geminiRes = await axios.post(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${process.env.GEMINI_API_KEY}`,
             { contents: [{ parts: contentsParts }] },
             { headers: { 'Content-Type': 'application/json' }, timeout: 14000 }
           );
@@ -346,10 +348,7 @@ STRICT CLINICAL RULES:
           const validated = GeminiResponseSchema.parse(jsonCandidate);
           parsedResult = validated;
         } catch (attemptErr) {
-          console.warn(`[Gemini Medicine Scan Attempt ${attempt} failed]:`, attemptErr.message);
-          if (attempt === 1) {
-            contentsParts[0] = { text: promptText + '\n\nIMPORTANT RETRY: Ensure strictly valid JSON with no trailing commas or markdown.' };
-          }
+          console.warn(`[Gemini Medicine Scan (${m}) failed]:`, attemptErr.message);
         }
       }
     }

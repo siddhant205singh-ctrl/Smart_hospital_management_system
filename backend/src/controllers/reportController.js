@@ -425,11 +425,19 @@ IMPORTANT:
 - Use ONLY the provided reports. Do NOT hallucinate diagnoses.
 - For each finding, list the specific source report title.`;
 
-        const geminiRes = await axios.post(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
-          { contents: [{ parts: [{ text: prompt }] }] },
-          { headers: { 'Content-Type': 'application/json' }, timeout: 9000 }
-        );
+        let geminiRes = null;
+        for (const m of ['gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-flash-latest']) {
+          try {
+            geminiRes = await axios.post(
+              `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${process.env.GEMINI_API_KEY}`,
+              { contents: [{ parts: [{ text: prompt }] }] },
+              { headers: { 'Content-Type': 'application/json' }, timeout: 12000 }
+            );
+            if (geminiRes?.data) break;
+          } catch (e) {
+            // try next model
+          }
+        }
 
         let rawText = geminiRes.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
         rawText = rawText.replace(/```json/gi, '').replace(/```/gi, '').trim();

@@ -117,8 +117,8 @@ function getGeminiToolsForRole(role = 'visitor', allowHealthData = true) {
  * Candidate models to try in order
  */
 const GEMINI_MODELS = [
-  'gemini-3.5-flash-lite',
   'gemini-3.5-flash',
+  'gemini-3.5-flash-lite',
   'gemini-flash-latest'
 ];
 
