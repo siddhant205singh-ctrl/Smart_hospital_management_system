@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
 import api from '../../services/api';
+import confetti from 'canvas-confetti';
 import {
   Search,
   Filter,
@@ -11,6 +12,7 @@ import {
   Building2,
   Calendar,
   CheckCircle,
+  CheckCircle2,
   X,
   Languages,
   User,
@@ -25,7 +27,12 @@ import {
   CheckSquare,
   Square,
   ChevronRight,
-  ChevronLeft
+  ChevronLeft,
+  Sparkles,
+  Loader2,
+  AlertCircle,
+  Copy,
+  Check
 } from 'lucide-react';
 
 export default function DoctorDirectory() {
@@ -56,6 +63,13 @@ export default function DoctorDirectory() {
   const [travelTime, setTravelTime] = useState(25);
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(null);
+  const [copiedToken, setCopiedToken] = useState(false);
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast(prev => ({ ...prev, show: false })), 4000);
+  };
 
   // Feature B: Pre-consultation document sharing & consent state
   const [bookingStep, setBookingStep] = useState(1);
@@ -162,6 +176,7 @@ export default function DoctorDirectory() {
 
     setBookingLoading(true);
     try {
+      // Unified single-roundtrip booking payload with pre-attached records & consent
       const res = await api.post('/appointments', {
         doctorId: selectedDoctor._id,
         date: bookingDate,
@@ -169,56 +184,47 @@ export default function DoctorDirectory() {
         bookedForFamilyMember: familyMember,
         symptoms,
         reasonForVisit: symptoms,
-        userTravelTimeMinutes: travelTime
+        userTravelTimeMinutes: travelTime,
+        selectedReportIds,
+        selectedMedicineIds,
+        consentGiven: totalSharedCount > 0 && documentConsent
       });
 
       const appt = res.data.appointment;
 
-      // Attach selected existing records
-      if (selectedReportIds.length > 0 || selectedMedicineIds.length > 0) {
-        try {
-          await api.post(`/appointments/${appt._id}/documents/select`, {
-            reportIds: selectedReportIds,
-            selectedReportIds,
-            medicineRecordIds: selectedMedicineIds,
-            selectedMedicineIds
-          });
-        } catch (selErr) {
-          console.warn('Error attaching existing records:', selErr);
-        }
-      }
-
-      // Upload newly attached files
+      // If patient uploaded newly snapped photos or local files, upload them in parallel
       if (uploadFiles.length > 0) {
-        try {
-          const formData = new FormData();
-          uploadFiles.forEach(f => {
-            formData.append('files', f);
-            formData.append('documentFile', f);
-          });
-          await api.post(`/appointments/${appt._id}/documents/upload`, formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
-          });
-        } catch (upErr) {
+        const formData = new FormData();
+        uploadFiles.forEach(f => {
+          formData.append('files', f);
+          formData.append('documentFile', f);
+        });
+        api.post(`/appointments/${appt._id}/documents/upload`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        }).catch(upErr => {
           console.warn('Error uploading booking documents:', upErr);
-        }
+        });
       }
 
-      // Record patient document-sharing consent (No AI consent flag)
-      if (totalSharedCount > 0) {
-        try {
-          await api.post(`/appointments/${appt._id}/consent`, {
-            consented: true,
-            consentTextVersion: '1.0'
-          });
-        } catch (consErr) {
-          console.warn('Error saving consent:', consErr);
-        }
-      }
+      // Instant success display with token details & celebratory confetti
+      setBookingSuccess({
+        ...appt,
+        doctor: selectedDoctor
+      });
 
-      setBookingSuccess(appt);
+      showToast(`🎉 Token #${appt.tokenNumber} generated successfully!`, 'success');
+
+      try {
+        confetti({
+          particleCount: 75,
+          spread: 70,
+          origin: { y: 0.6 }
+        });
+      } catch (confettiErr) {
+        // Safe fallback if canvas not available
+      }
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to book appointment');
+      showToast(err.response?.data?.error || 'Failed to book appointment', 'error');
     } finally {
       setBookingLoading(false);
     }
@@ -228,6 +234,18 @@ export default function DoctorDirectory() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      {/* Toast Alert */}
+      {toast.show && (
+        <div
+          className={`fixed top-5 right-5 z-50 px-4 py-3 rounded-2xl shadow-2xl flex items-center space-x-2.5 text-xs font-bold transition-all duration-300 animate-in fade-in slide-in-from-top-4 ${
+            toast.type === 'error' ? 'bg-rose-600 text-white' : 'bg-teal-600 text-white'
+          }`}
+        >
+          {toast.type === 'error' ? <AlertCircle className="w-4 h-4 flex-shrink-0" /> : <CheckCircle2 className="w-4 h-4 flex-shrink-0" />}
+          <span>{toast.message}</span>
+        </div>
+      )}
+
       {/* Header */}
       <div>
         <h1 className="text-3xl font-black text-slate-900 dark:text-white">{t('doctors.title')}</h1>
@@ -450,36 +468,74 @@ export default function DoctorDirectory() {
             </div>
 
             {bookingSuccess ? (
-              <div className="text-center py-6 space-y-4">
-                <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-md">
-                  <CheckCircle className="w-10 h-10" />
+              <div className="text-center py-4 space-y-4 animate-in fade-in zoom-in-95 duration-200">
+                <div className="w-16 h-16 rounded-3xl bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400 flex items-center justify-center mx-auto shadow-lg shadow-emerald-600/20">
+                  <CheckCircle2 className="w-9 h-9" />
                 </div>
                 <div>
-                  <h4 className="text-xl font-black text-slate-900 dark:text-white">Token Generated!</h4>
-                  <p className="text-xs text-slate-500 mt-1">Your appointment and live queue tracking are confirmed.</p>
+                  <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold uppercase tracking-wider mb-1.5">
+                    <Sparkles className="w-3 h-3" />
+                    <span>Token Confirmed & Active</span>
+                  </div>
+                  <h4 className="text-2xl font-black text-slate-900 dark:text-white">Token Generated!</h4>
+                  <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                    Your appointment with <strong className="text-slate-800 dark:text-slate-200">Dr. {bookingSuccess.doctor?.userId?.name || selectedDoctor?.userId?.name}</strong> is confirmed.
+                  </p>
                 </div>
 
-                {/* Big Token Preview */}
-                <div className="p-4 bg-teal-50 dark:bg-teal-950/40 rounded-2xl border border-teal-200 dark:border-teal-800 inline-block">
-                  <span className="text-[10px] uppercase font-bold text-teal-800 dark:text-teal-200 block">Token Number</span>
-                  <span className="text-4xl font-black text-teal-700 dark:text-teal-300">#{bookingSuccess.tokenNumber}</span>
-                  <span className="text-xs font-mono font-bold text-slate-600 dark:text-slate-300 block mt-0.5">{bookingSuccess.tokenCode}</span>
+                {/* Big Token Pass */}
+                <div className="p-4 bg-gradient-to-br from-teal-50 to-emerald-50 dark:from-teal-950/50 dark:to-emerald-950/50 rounded-2xl border border-teal-200 dark:border-teal-800/80 shadow-inner max-w-xs mx-auto">
+                  <span className="text-[10px] uppercase font-bold text-teal-800 dark:text-teal-200 block">Queue Token Number</span>
+                  <span className="text-4xl font-black text-teal-700 dark:text-teal-300 block my-1">#{bookingSuccess.tokenNumber}</span>
+                  <div className="flex items-center justify-center space-x-2">
+                    <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300 bg-white/70 dark:bg-slate-800/70 px-2 py-0.5 rounded-lg border">
+                      {bookingSuccess.tokenCode}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard?.writeText(bookingSuccess.tokenCode);
+                        setCopiedToken(true);
+                        setTimeout(() => setCopiedToken(false), 2000);
+                      }}
+                      className="p-1 rounded-md text-slate-500 hover:text-teal-600 hover:bg-white dark:hover:bg-slate-800"
+                      title="Copy Token Code"
+                    >
+                      {copiedToken ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                  <div className="mt-3 pt-2 border-t border-teal-200/60 dark:border-teal-800/60 text-[11px] text-slate-600 dark:text-slate-400 flex items-center justify-between">
+                    <span>{bookingSuccess.date}</span>
+                    <span>Slot: <strong>{bookingSuccess.timeSlot}</strong></span>
+                  </div>
                 </div>
 
-                <div className="flex justify-center">
-                  <img src={bookingSuccess.qrCode} alt="Token QR" className="w-36 h-36 border rounded-xl p-2 bg-white" />
+                {/* QR Code */}
+                <div className="space-y-1">
+                  <div className="flex justify-center">
+                    <img src={bookingSuccess.qrCode} alt="Token QR" className="w-32 h-32 border border-slate-200 dark:border-slate-700 rounded-2xl p-2 bg-white shadow-sm" />
+                  </div>
+                  <span className="text-[10px] text-slate-400 block">Show QR at hospital reception or self-service kiosk</span>
                 </div>
+
+                {(bookingSuccess.documentsCount > 0 || totalSharedCount > 0) && (
+                  <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 text-xs font-semibold border border-indigo-200 dark:border-indigo-800">
+                    <Paperclip className="w-3.5 h-3.5" />
+                    <span>{bookingSuccess.documentsCount || totalSharedCount} Document(s) securely attached for consultation</span>
+                  </div>
+                )}
 
                 <div className="flex space-x-3 pt-2">
                   <button
                     onClick={() => { setSelectedDoctor(null); navigate(`/my-queue`); }}
-                    className="flex-1 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-md transition"
+                    className="flex-1 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-md shadow-teal-600/30 transition flex items-center justify-center space-x-1.5"
                   >
-                    Open Live Queue Tracker →
+                    <span>Open Live Queue Tracker</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                   <button
                     onClick={() => setSelectedDoctor(null)}
-                    className="px-4 py-2.5 border rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300"
+                    className="px-5 py-3 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
                   >
                     Done
                   </button>
@@ -835,26 +891,41 @@ export default function DoctorDirectory() {
                     )}
 
                     {/* Action Buttons */}
-                    <div className="flex space-x-2 pt-2">
-                      <button
-                        type="button"
-                        onClick={() => setBookingStep(1)}
-                        className="px-4 py-2.5 border rounded-xl text-slate-600 dark:text-slate-300 font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center space-x-1"
-                      >
-                        <ChevronLeft className="w-4 h-4" />
-                        <span>Back</span>
-                      </button>
+                    <div className="space-y-2 pt-2">
+                      {bookingLoading && (
+                        <div className="p-3 bg-teal-50 dark:bg-teal-950/40 rounded-xl border border-teal-200 dark:border-teal-800 text-teal-800 dark:text-teal-200 text-xs flex items-center space-x-2 animate-pulse">
+                          <Sparkles className="w-4 h-4 text-teal-600 animate-spin flex-shrink-0" />
+                          <span>Reserving your token and positioning you in the live queue...</span>
+                        </div>
+                      )}
 
-                      <button
-                        type="button"
-                        disabled={bookingLoading || (totalSharedCount > 0 && !documentConsent)}
-                        onClick={handleConfirmBooking}
-                        className="flex-1 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl shadow-lg shadow-teal-600/30 transition disabled:opacity-50"
-                      >
-                        {bookingLoading
-                          ? 'Generating Token...'
-                          : `Confirm & Generate Token (₹${selectedDoctor.consultationFee})`}
-                      </button>
+                      <div className="flex space-x-2">
+                        <button
+                          type="button"
+                          onClick={() => setBookingStep(1)}
+                          disabled={bookingLoading}
+                          className="px-4 py-2.5 border rounded-xl text-slate-600 dark:text-slate-300 font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center space-x-1 disabled:opacity-50"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                          <span>Back</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={bookingLoading || (totalSharedCount > 0 && !documentConsent)}
+                          onClick={handleConfirmBooking}
+                          className="flex-1 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl shadow-lg shadow-teal-600/30 transition disabled:opacity-50 flex items-center justify-center space-x-2"
+                        >
+                          {bookingLoading ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              <span>Generating Token & Slot...</span>
+                            </>
+                          ) : (
+                            <span>Confirm & Generate Token (₹{selectedDoctor.consultationFee})</span>
+                          )}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}

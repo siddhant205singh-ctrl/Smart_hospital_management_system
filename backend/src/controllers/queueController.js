@@ -151,19 +151,29 @@ exports.callNextToken = async (req, res, next) => {
         roomNumber: doctor.roomNumber,
         doctorName: doctor.userId?.name
       });
-      await recalculateDoctorQueue(doctorId, io);
     }
 
-    await sendNotification({
-      userId: nextPatient.patientId._id,
-      userPhone: nextPatient.patientId.phone,
-      type: 'token_called',
-      title: 'Your Token is Called!',
-      message: `Token #${nextPatient.tokenNumber} is called! Please proceed to Room ${doctor.roomNumber} for Dr. ${doctor.userId?.name}.`,
-      channel: 'all'
-    });
-
+    // Respond immediately for a frictionless, instantaneous UI response
     res.json({ success: true, calledAppointment: nextPatient });
+
+    // Non-blocking background recalculations & notifications
+    setImmediate(async () => {
+      try {
+        if (io) {
+          await recalculateDoctorQueue(doctorId, io);
+        }
+        await sendNotification({
+          userId: nextPatient.patientId._id,
+          userPhone: nextPatient.patientId.phone,
+          type: 'token_called',
+          title: 'Your Token is Called!',
+          message: `Token #${nextPatient.tokenNumber} is called! Please proceed to Room ${doctor.roomNumber} for Dr. ${doctor.userId?.name}.`,
+          channel: 'all'
+        });
+      } catch (bgErr) {
+        console.error('[callNextToken background error]:', bgErr.message);
+      }
+    });
   } catch (error) {
     next(error);
   }
@@ -187,9 +197,21 @@ exports.startConsultation = async (req, res, next) => {
     await doctor.save();
 
     const io = req.app.get('io');
-    await recalculateDoctorQueue(appointment.doctorId._id, io);
+    if (io) {
+      io.to(`doctor_${doctor._id}`).emit('queue:updated', { doctorId: doctor._id });
+    }
 
+    // Immediate response so the doctor console feels instant with zero freeze
     res.json({ success: true, appointment });
+
+    // Background queue wait recalculations
+    setImmediate(async () => {
+      try {
+        await recalculateDoctorQueue(appointment.doctorId._id, io);
+      } catch (bgErr) {
+        console.error('[startConsultation background error]:', bgErr.message);
+      }
+    });
   } catch (error) {
     next(error);
   }
@@ -228,12 +250,24 @@ exports.endConsultation = async (req, res, next) => {
     await doctor.save();
 
     const io = req.app.get('io');
-    await recalculateDoctorQueue(appointment.doctorId, io);
+    if (io) {
+      io.to(`doctor_${doctor._id}`).emit('queue:updated', { doctorId: doctor._id });
+    }
 
+    // Respond immediately to physician
     res.json({
       success: true,
       durationMinutes,
       appointment
+    });
+
+    // Background queue wait recalculations
+    setImmediate(async () => {
+      try {
+        await recalculateDoctorQueue(appointment.doctorId, io);
+      } catch (bgErr) {
+        console.error('[endConsultation background error]:', bgErr.message);
+      }
     });
   } catch (error) {
     next(error);
@@ -252,9 +286,19 @@ exports.markNoShow = async (req, res, next) => {
     await appointment.save();
 
     const io = req.app.get('io');
-    await recalculateDoctorQueue(appointment.doctorId, io);
+    if (io) {
+      io.to(`doctor_${appointment.doctorId}`).emit('queue:updated', { doctorId: appointment.doctorId });
+    }
 
     res.json({ success: true, message: 'Patient marked as no-show' });
+
+    setImmediate(async () => {
+      try {
+        await recalculateDoctorQueue(appointment.doctorId, io);
+      } catch (bgErr) {
+        console.error('[markNoShow background error]:', bgErr.message);
+      }
+    });
   } catch (error) {
     next(error);
   }

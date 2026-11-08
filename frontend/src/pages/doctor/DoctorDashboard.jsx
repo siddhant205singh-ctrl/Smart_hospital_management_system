@@ -7,6 +7,7 @@ import {
   Clock,
   Play,
   CheckCircle,
+  CheckCircle2,
   PhoneCall,
   UserX,
   FileText,
@@ -27,7 +28,8 @@ import {
   Shield,
   Pin,
   ExternalLink,
-  Globe
+  Globe,
+  Loader2
 } from 'lucide-react';
 
 export default function DoctorDashboard() {
@@ -42,6 +44,15 @@ export default function DoctorDashboard() {
   const [consultNotes, setConsultNotes] = useState('');
   const [prescriptionText, setPrescriptionText] = useState('');
   const [completing, setCompleting] = useState(false);
+  const [actionLoading, setActionLoading] = useState({ start: null, callNext: false });
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => {
+      setToast(prev => ({ ...prev, show: false }));
+    }, 3500);
+  };
 
   // Patient history drawer state
   const [historyPatient, setHistoryPatient] = useState(null);
@@ -107,15 +118,36 @@ export default function DoctorDashboard() {
 
   // Actions
   const handleCallNext = async () => {
+    setActionLoading(prev => ({ ...prev, callNext: true }));
     try {
-      await api.post('/queue/call-next', { doctorId });
+      const res = await api.post('/queue/call-next', { doctorId });
+      const called = res.data.calledAppointment;
+      showToast(`Token #${called?.tokenNumber || ''} called! Patient notified.`, 'success');
       fetchLiveQueue(doctorId);
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to call next token');
+      showToast(err.response?.data?.error || 'Failed to call next token', 'error');
+    } finally {
+      setActionLoading(prev => ({ ...prev, callNext: false }));
     }
   };
 
   const handleStartConsultation = async (apptId) => {
+    setActionLoading(prev => ({ ...prev, start: apptId }));
+    
+    // Instant optimistic update so screen NEVER looks frozen
+    const selected = queueData?.waitingQueue?.find(a => a._id === apptId) ||
+                     (queueData?.calledPatient?._id === apptId ? queueData.calledPatient : null);
+
+    if (selected) {
+      setQueueData(prev => prev ? {
+        ...prev,
+        currentPatient: { ...selected, status: 'in_consultation' },
+        waitingQueue: prev.waitingQueue?.filter(a => a._id !== apptId) || [],
+        calledPatient: prev.calledPatient?._id === apptId ? null : prev.calledPatient
+      } : prev);
+      showToast(`Consultation started with ${selected.bookedForFamilyMember || selected.patientId?.name || 'patient'}.`, 'success');
+    }
+
     try {
       await api.post('/queue/start-consultation', { appointmentId: apptId });
       // Reset doc viewer state for new patient
@@ -125,7 +157,10 @@ export default function DoctorDashboard() {
       setDocsError('');
       fetchLiveQueue(doctorId);
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to start consultation');
+      showToast(err.response?.data?.error || 'Failed to start consultation', 'error');
+      fetchLiveQueue(doctorId);
+    } finally {
+      setActionLoading(prev => ({ ...prev, start: null }));
     }
   };
 
@@ -220,17 +255,33 @@ export default function DoctorDashboard() {
   const handleEndConsultation = async () => {
     if (!queueData?.currentPatient) return;
     setCompleting(true);
+    const completedAppt = queueData.currentPatient;
+
+    // Instant optimistic update: release the desk immediately
+    setQueueData(prev => prev ? {
+      ...prev,
+      currentPatient: null,
+      completedQueue: completedAppt ? [{ ...completedAppt, status: 'completed' }, ...(prev.completedQueue || [])] : prev.completedQueue,
+      completedCount: (prev.completedCount || 0) + 1
+    } : prev);
+
+    showToast('Consultation completed successfully! Patient records updated.', 'success');
+    setConsultNotes('');
+    setPrescriptionText('');
+    setLoadedDocsAppointmentId(null);
+    setPatientDocsData(null);
+    setAiSummary(null);
+
     try {
       await api.post('/queue/end-consultation', {
-        appointmentId: queueData.currentPatient._id,
+        appointmentId: completedAppt._id,
         doctorNotes: consultNotes,
         prescription: prescriptionText
       });
-      setConsultNotes('');
-      setPrescriptionText('');
       fetchLiveQueue(doctorId);
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to complete consultation');
+      showToast(err.response?.data?.error || 'Failed to complete consultation', 'error');
+      fetchLiveQueue(doctorId);
     } finally {
       setCompleting(false);
     }
@@ -279,6 +330,18 @@ export default function DoctorDashboard() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      {/* Feedback Toast Notification */}
+      {toast.show && (
+        <div
+          className={`fixed top-5 right-5 z-50 px-4 py-3 rounded-2xl shadow-2xl flex items-center space-x-2.5 text-xs font-bold transition-all duration-300 animate-in fade-in slide-in-from-top-4 ${
+            toast.type === 'error' ? 'bg-rose-600 text-white' : 'bg-teal-600 text-white'
+          }`}
+        >
+          {toast.type === 'error' ? <AlertCircle className="w-4 h-4 flex-shrink-0" /> : <CheckCircle2 className="w-4 h-4 flex-shrink-0" />}
+          <span>{toast.message}</span>
+        </div>
+      )}
+
       {/* Top Banner: Doctor Info & Live Availability Toggles */}
       <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
@@ -661,10 +724,19 @@ export default function DoctorDashboard() {
                   <button
                     onClick={handleEndConsultation}
                     disabled={completing}
-                    className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-lg transition flex items-center justify-center space-x-2"
+                    className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-lg transition flex items-center justify-center space-x-2 disabled:opacity-60"
                   >
-                    <Check className="w-4 h-4" />
-                    <span>{completing ? 'Updating Dynamic Engine...' : 'End Consultation & Recalculate Wait Times'}</span>
+                    {completing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Saving Record & Recalculating...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4" />
+                        <span>End Consultation & Save Record</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
@@ -677,9 +749,11 @@ export default function DoctorDashboard() {
                 <p className="text-xs text-slate-400">Call the next waiting token to start your consultation timer.</p>
                 <button
                   onClick={handleCallNext}
-                  className="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-md transition"
+                  disabled={actionLoading.callNext}
+                  className="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-md transition flex items-center justify-center space-x-2 mx-auto disabled:opacity-60"
                 >
-                  Call Next Token →
+                  {actionLoading.callNext && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>Call Next Token →</span>
                 </button>
               </div>
             )}
@@ -696,9 +770,11 @@ export default function DoctorDashboard() {
               </div>
               <button
                 onClick={handleCallNext}
-                className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-sm transition"
+                disabled={actionLoading.callNext}
+                className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center space-x-1.5 disabled:opacity-60"
               >
-                Call Next
+                {actionLoading.callNext && <Loader2 className="w-3 h-3 animate-spin" />}
+                <span>Call Next</span>
               </button>
             </div>
 
@@ -737,10 +813,15 @@ export default function DoctorDashboard() {
                       <div className="flex items-center space-x-1.5">
                         <button
                           onClick={() => handleStartConsultation(item._id)}
+                          disabled={actionLoading.start === item._id}
                           title="Start Consultation"
-                          className="p-1.5 rounded-lg bg-teal-600 text-white hover:bg-teal-700 text-xs"
+                          className="p-1.5 rounded-lg bg-teal-600 text-white hover:bg-teal-700 text-xs flex items-center justify-center disabled:opacity-60"
                         >
-                          <Play className="w-3.5 h-3.5" />
+                          {actionLoading.start === item._id ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Play className="w-3.5 h-3.5" />
+                          )}
                         </button>
                         <button
                           onClick={() => handleNoShow(item._id)}

@@ -1,5 +1,9 @@
 const Appointment = require('../models/Appointment');
 const Doctor = require('../models/Doctor');
+const AppointmentDocumentShare = require('../models/AppointmentDocumentShare');
+const AppointmentConsent = require('../models/AppointmentConsent');
+const MedicalReport = require('../models/MedicalReport');
+const MedicineRecord = require('../models/MedicineRecord');
 const QRCode = require('qrcode');
 const { recalculateDoctorQueue } = require('../services/waitEngine');
 const { sendNotification } = require('../services/notificationService');
@@ -14,7 +18,11 @@ exports.bookAppointment = async (req, res, next) => {
       timeSlot,
       bookedForFamilyMember,
       symptoms,
-      userTravelTimeMinutes
+      reasonForVisit,
+      userTravelTimeMinutes,
+      selectedReportIds = [],
+      selectedMedicineIds = [],
+      consentGiven = false
     } = req.body;
 
     const doctor = await Doctor.findById(doctorId).populate('departmentId').populate('hospitalId').populate('userId');
@@ -48,45 +56,103 @@ exports.bookAppointment = async (req, res, next) => {
       tokenNumber,
       tokenCode,
       qrCode: qrCodeDataUrl,
-      symptoms: symptoms || '',
+      symptoms: symptoms || reasonForVisit || '',
+      reasonForVisit: reasonForVisit || symptoms || '',
       userTravelTimeMinutes: userTravelTimeMinutes || 30,
       status: 'scheduled'
     });
 
-    // Notify patient
-    const message = `Your appointment with Dr. ${doctor.userId?.name} is confirmed for ${date} at ${timeSlot}. Your Token is #${tokenNumber} (${tokenCode}).`;
-    await sendNotification({
-      userId: req.user._id,
-      userPhone: req.user.phone,
-      userEmail: req.user.email,
-      type: 'appointment_booked',
-      title: 'Appointment Confirmed',
-      message,
-      channel: 'all',
-      meta: { appointmentId: appointment._id, tokenNumber, tokenCode }
-    });
-
-    await logAudit({
-      userId: req.user._id,
-      userName: req.user.name,
-      userRole: req.user.role,
-      action: 'BOOK_APPOINTMENT',
-      resourceType: 'Appointment',
-      resourceId: appointment._id,
-      patientId: req.user._id,
-      details: { tokenCode, doctorName: doctor.userId?.name, date }
-    });
-
-    // Trigger queue recalculation if appointment is for today
-    const todayStr = new Date().toISOString().split('T')[0];
-    if (date === todayStr) {
-      const io = req.app.get('io');
-      await recalculateDoctorQueue(doctor._id, io);
+    // Seamlessly attach pre-selected documents if provided in booking payload
+    let attachedCount = 0;
+    if (Array.isArray(selectedReportIds) && selectedReportIds.length > 0) {
+      const reports = await MedicalReport.find({ _id: { $in: selectedReportIds }, patientId: req.user._id });
+      for (const rep of reports) {
+        await AppointmentDocumentShare.create({
+          appointmentId: appointment._id,
+          patientId: req.user._id,
+          documentType: 'medical_report',
+          documentId: rep._id,
+          title: rep.title,
+          reportType: rep.reportType,
+          fileUrl: rep.fileUrl
+        });
+        attachedCount++;
+      }
     }
 
+    if (Array.isArray(selectedMedicineIds) && selectedMedicineIds.length > 0) {
+      const meds = await MedicineRecord.find({ _id: { $in: selectedMedicineIds }, patientId: req.user._id });
+      for (const med of meds) {
+        await AppointmentDocumentShare.create({
+          appointmentId: appointment._id,
+          patientId: req.user._id,
+          documentType: 'medicine_record',
+          documentId: med._id,
+          title: med.name,
+          reportType: 'medicine',
+          fileUrl: med.photoUrl || ''
+        });
+        attachedCount++;
+      }
+    }
+
+    if (attachedCount > 0 || consentGiven) {
+      const validUntil = new Date();
+      validUntil.setDate(validUntil.getDate() + 3);
+      await AppointmentConsent.create({
+        appointmentId: appointment._id,
+        patientId: req.user._id,
+        doctorId: doctor._id,
+        status: 'active',
+        validUntil,
+        consentText: `I consent to share the selected documents with Dr. ${doctor.userId?.name || 'Physician'} for this consultation. The doctor may use assistive software to help review them.`
+      });
+      appointment.documentsCount = attachedCount;
+      await appointment.save();
+    }
+
+    // Return instant HTTP 201 response so screen NEVER freezes
     res.status(201).json({
       success: true,
       appointment
+    });
+
+    // Background notifications, auditing, and live queue wait recalculations
+    setImmediate(async () => {
+      try {
+        const message = `Your appointment with Dr. ${doctor.userId?.name} is confirmed for ${date} at ${timeSlot}. Your Token is #${tokenNumber} (${tokenCode}).`;
+        await sendNotification({
+          userId: req.user._id,
+          userPhone: req.user.phone,
+          userEmail: req.user.email,
+          type: 'appointment_booked',
+          title: 'Appointment Confirmed',
+          message,
+          channel: 'all',
+          meta: { appointmentId: appointment._id, tokenNumber, tokenCode }
+        });
+
+        await logAudit({
+          userId: req.user._id,
+          userName: req.user.name,
+          userRole: req.user.role,
+          action: 'BOOK_APPOINTMENT',
+          resourceType: 'Appointment',
+          resourceId: appointment._id,
+          patientId: req.user._id,
+          details: { tokenCode, doctorName: doctor.userId?.name, date }
+        });
+
+        const todayStr = new Date().toISOString().split('T')[0];
+        if (date === todayStr) {
+          const io = req.app.get('io');
+          if (io) {
+            await recalculateDoctorQueue(doctor._id, io);
+          }
+        }
+      } catch (bgErr) {
+        console.error('[bookAppointment background error]:', bgErr.message);
+      }
     });
   } catch (error) {
     next(error);
