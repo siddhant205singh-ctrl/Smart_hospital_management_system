@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../contexts/SocketContext';
 import { useTranslation } from 'react-i18next';
-import api from '../../services/api';
+import api, { getMediaUrl } from '../../services/api';
 import {
   Clock,
   Calendar,
@@ -722,7 +722,7 @@ export default function PatientDashboard() {
                         </div>
                         {doc.fileUrl && (
                           <a
-                            href={doc.fileUrl}
+                            href={getMediaUrl(doc.fileUrl)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="p-1.5 rounded-lg bg-white dark:bg-slate-700 hover:bg-teal-50 text-teal-600 border flex items-center space-x-1 text-[11px] font-semibold"

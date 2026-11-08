@@ -7,11 +7,11 @@ const {
   generateDoctorSummary,
   pinSummaryToNotes
 } = require('../controllers/consultationDocumentController');
-const { protect } = require('../middleware/authMiddleware');
+const { protect, optionalProtect } = require('../middleware/authMiddleware');
 
 // Doctor consultation routes
 router.get('/:id/documents', protect, loadDoctorConsultationDocuments);
-router.get('/:id/documents/:docId/view', protect, viewDocumentFile);
+router.get('/:id/documents/:docId/view', optionalProtect, viewDocumentFile);
 router.post('/:id/documents/:docId/review', protect, markDocumentReviewed);
 router.post('/:id/documents/summary', protect, generateDoctorSummary);
 router.post('/:id/documents/summary/regenerate', protect, (req, res, next) => {

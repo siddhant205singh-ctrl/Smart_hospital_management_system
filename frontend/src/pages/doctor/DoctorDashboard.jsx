@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../contexts/SocketContext';
-import api from '../../services/api';
+import api, { getMediaUrl } from '../../services/api';
 import {
   Users,
   Clock,
@@ -805,6 +805,15 @@ export default function DoctorDashboard() {
                 >
                   <RotateCw className="w-4 h-4" />
                 </button>
+                <a
+                  href={getMediaUrl(viewingDoc.signedViewUrl || viewingDoc.fileUrl)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-1.5 rounded-lg border hover:bg-slate-100 dark:hover:bg-slate-800 text-teal-600 dark:text-teal-400"
+                  title="Open file in new window"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                </a>
                 <button
                   type="button"
                   onClick={() => setViewingDoc(null)}
@@ -818,9 +827,13 @@ export default function DoctorDashboard() {
 
             {/* Viewer Body */}
             <div className="flex-1 overflow-auto p-4 bg-slate-100 dark:bg-slate-950 flex items-center justify-center min-h-[400px]">
-              {viewingDoc.signedViewUrl?.includes('.pdf') || viewingDoc.fileUrl?.endsWith('.pdf') ? (
+              {Boolean(
+                viewingDoc.fileUrl?.toLowerCase().includes('.pdf') ||
+                viewingDoc.title?.toLowerCase().endsWith('.pdf') ||
+                viewingDoc.reportType === 'pdf'
+              ) ? (
                 <iframe
-                  src={viewingDoc.signedViewUrl}
+                  src={getMediaUrl(viewingDoc.signedViewUrl || viewingDoc.fileUrl)}
                   title={viewingDoc.title}
                   className="w-full h-[65vh] rounded-xl border border-slate-300 dark:border-slate-700 bg-white"
                 />
@@ -832,8 +845,13 @@ export default function DoctorDashboard() {
                   }}
                 >
                   <img
-                    src={viewingDoc.signedViewUrl || viewingDoc.fileUrl}
+                    src={getMediaUrl(viewingDoc.signedViewUrl || viewingDoc.fileUrl)}
                     alt={viewingDoc.title}
+                    onError={(e) => {
+                      if (viewingDoc.fileUrl && e.currentTarget.src !== getMediaUrl(viewingDoc.fileUrl)) {
+                        e.currentTarget.src = getMediaUrl(viewingDoc.fileUrl);
+                      }
+                    }}
                     className="max-w-full max-h-[65vh] object-contain rounded-xl shadow-md border"
                   />
                 </div>

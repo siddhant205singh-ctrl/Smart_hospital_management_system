@@ -12,6 +12,7 @@ const MedicalReport = require('../models/MedicalReport');
 const MedicineRecord = require('../models/MedicineRecord');
 const Doctor = require('../models/Doctor');
 const EmergencyCase = require('../models/EmergencyCase');
+const User = require('../models/User');
 const { logAudit } = require('../middleware/auditMiddleware');
 
 // Multer storage for pre-consultation document uploads
@@ -702,20 +703,41 @@ exports.viewDocumentFile = async (req, res, next) => {
       return res.status(403).json({ error: 'Document sharing consent has been revoked by the patient.' });
     }
 
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+
     if (docShare.fileUrl.startsWith('http://') || docShare.fileUrl.startsWith('https://')) {
       return res.redirect(docShare.fileUrl);
     }
 
-    const absolutePath = path.join(__dirname, '../../', docShare.fileUrl);
+    const cleanPath = docShare.fileUrl.replace(/^\/+/, '');
+    const absolutePath = path.join(__dirname, '../../', cleanPath);
     if (!fs.existsSync(absolutePath)) {
       return res.status(404).json({ error: 'Physical file not found on server.' });
     }
 
+    // Safe user info for audit log even if no req.user (e.g. native img/iframe request using signed token)
+    let auditUserId = req.user ? req.user._id : doctorId;
+    let auditUserName = req.user ? req.user.name : 'Consulting Doctor';
+    let auditUserRole = req.user ? req.user.role : 'doctor';
+
+    if (!req.user && doctorId) {
+      try {
+        const docUser = await User.findById(doctorId).select('name role');
+        if (docUser) {
+          auditUserName = docUser.name;
+          auditUserRole = docUser.role;
+        }
+      } catch (err) {
+        // Fallback to defaults
+      }
+    }
+
     // Audit log individual document inspection
     await logAudit({
-      userId: req.user._id,
-      userName: req.user.name,
-      userRole: req.user.role,
+      userId: auditUserId,
+      userName: auditUserName,
+      userRole: auditUserRole,
       action: 'DOCTOR_DOCUMENT_VIEWED',
       resourceType: 'AppointmentDocumentShare',
       resourceId: docShare._id,

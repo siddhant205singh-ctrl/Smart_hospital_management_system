@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import api from '../../services/api';
+import api, { getMediaUrl } from '../../services/api';
 import {
   Camera,
   Upload,
@@ -480,7 +480,7 @@ export default function MedicineScannerModal({ isOpen, onClose, onMedicinesSaved
                 <div className="space-y-3">
                   <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 max-h-80 bg-slate-950 flex items-center justify-center">
                     <img
-                      src={previewUrls[0] || currentItem.photoUrl}
+                      src={previewUrls[0] || getMediaUrl(currentItem.photoUrl)}
                       alt="Scanned Packaging"
                       className="max-h-80 w-auto object-contain"
                     />

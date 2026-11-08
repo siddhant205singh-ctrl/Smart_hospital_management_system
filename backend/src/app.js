@@ -83,8 +83,12 @@ app.use('/api/approvals', approvalRoutes);
 app.use('/api/medicines', medicineRoutes);
 app.use('/api/consultations', consultationRoutes);
 
-// Static uploads serving
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+// Static uploads serving with cross-origin headers so images/PDFs render seamlessly across ports and deployments
+app.use('/uploads', (req, res, next) => {
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  next();
+}, express.static(path.join(__dirname, '../uploads')));
 
 // LifeShare Voluntary Blood Donor Program routes
 app.use('/api', lifeShareRoutes);

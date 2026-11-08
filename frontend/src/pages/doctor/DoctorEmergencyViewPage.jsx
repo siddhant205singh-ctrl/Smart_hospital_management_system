@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../contexts/SocketContext';
-import api from '../../services/api';
+import api, { getMediaUrl } from '../../services/api';
 import {
   ShieldAlert,
   AlertTriangle,
@@ -886,7 +886,7 @@ export default function DoctorEmergencyViewPage() {
                   <ZoomIn className="w-4 h-4" />
                 </button>
                 <a
-                  href={previewReport.fileUrl}
+                  href={getMediaUrl(previewReport.fileUrl)}
                   target="_blank"
                   rel="noreferrer"
                   className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-teal-600"
@@ -905,16 +905,20 @@ export default function DoctorEmergencyViewPage() {
             </div>
 
             <div className="flex-1 overflow-auto p-4 flex items-center justify-center bg-slate-100 dark:bg-slate-950/60 min-h-[350px]">
-              {previewReport.fileMimeType?.includes('pdf') ? (
+              {Boolean(
+                previewReport.fileMimeType?.includes('pdf') ||
+                previewReport.fileUrl?.toLowerCase().includes('.pdf') ||
+                previewReport.title?.toLowerCase().endsWith('.pdf')
+              ) ? (
                 <iframe
-                  src={previewReport.fileUrl}
+                  src={getMediaUrl(previewReport.fileUrl)}
                   title={previewReport.title}
                   className="w-full h-[65vh] rounded-2xl border border-slate-200 dark:border-slate-800 shadow"
                 />
               ) : (
                 <div className="overflow-auto max-h-[70vh] flex items-center justify-center">
                   <img
-                    src={previewReport.fileUrl}
+                    src={getMediaUrl(previewReport.fileUrl)}
                     alt={previewReport.title}
                     style={{ transform: `scale(${previewZoom})`, transformOrigin: 'center center' }}
                     className="max-w-full max-h-[65vh] object-contain rounded-xl shadow-lg transition-transform duration-200"

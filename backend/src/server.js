@@ -31,6 +31,17 @@ app.set('io', io);
 // Initialize socket rooms and listeners
 initSocketIO(io);
 
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`\n❌ [SmartCare Error] Port ${PORT} is already in use by another running process.`);
+    console.error(`To free port ${PORT} on Windows PowerShell, run:`);
+    console.error(`  Stop-Process -Id (Get-NetTCPConnection -LocalPort ${PORT}).OwningProcess -Force\n`);
+  } else {
+    console.error('\n❌ Server error:', err);
+  }
+  process.exit(1);
+});
+
 server.listen(PORT, () => {
   console.log(`\n🏥 [SmartCare Server] Running on http://localhost:${PORT}`);
   console.log(`⚡ [Socket.IO] Gateway ready for real-time queue streaming\n`);

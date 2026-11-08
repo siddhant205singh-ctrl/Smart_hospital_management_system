@@ -95,4 +95,20 @@ api.interceptors.response.use(
   }
 );
 
+export const getMediaUrl = (url) => {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('blob:') || url.startsWith('data:')) {
+    return url;
+  }
+  // If backend base URL is explicitly provided via VITE_API_URL, prepend it (stripping trailing /api or /)
+  const envApiUrl = import.meta.env.VITE_API_URL;
+  if (envApiUrl) {
+    const backendBase = envApiUrl.replace(/\/api\/?$/, '').replace(/\/$/, '');
+    const cleanPath = url.startsWith('/') ? url : `/${url}`;
+    return `${backendBase}${cleanPath}`;
+  }
+  // Otherwise in local dev with Vite proxying /api and /uploads, return relative path with leading slash
+  return url.startsWith('/') ? url : `/${url}`;
+};
+
 export default api;
