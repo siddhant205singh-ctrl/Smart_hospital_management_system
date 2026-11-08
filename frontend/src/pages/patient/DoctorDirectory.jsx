@@ -176,27 +176,44 @@ export default function DoctorDirectory() {
 
       // Attach selected existing records
       if (selectedReportIds.length > 0 || selectedMedicineIds.length > 0) {
-        await api.post(`/appointments/${appt._id}/documents/select`, {
-          reportIds: selectedReportIds,
-          medicineRecordIds: selectedMedicineIds
-        });
+        try {
+          await api.post(`/appointments/${appt._id}/documents/select`, {
+            reportIds: selectedReportIds,
+            selectedReportIds,
+            medicineRecordIds: selectedMedicineIds,
+            selectedMedicineIds
+          });
+        } catch (selErr) {
+          console.warn('Error attaching existing records:', selErr);
+        }
       }
 
       // Upload newly attached files
       if (uploadFiles.length > 0) {
-        const formData = new FormData();
-        uploadFiles.forEach(f => formData.append('files', f));
-        await api.post(`/appointments/${appt._id}/documents/upload`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        });
+        try {
+          const formData = new FormData();
+          uploadFiles.forEach(f => {
+            formData.append('files', f);
+            formData.append('documentFile', f);
+          });
+          await api.post(`/appointments/${appt._id}/documents/upload`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
+        } catch (upErr) {
+          console.warn('Error uploading booking documents:', upErr);
+        }
       }
 
       // Record patient document-sharing consent (No AI consent flag)
       if (totalSharedCount > 0) {
-        await api.post(`/appointments/${appt._id}/consent`, {
-          consented: true,
-          consentTextVersion: '1.0'
-        });
+        try {
+          await api.post(`/appointments/${appt._id}/consent`, {
+            consented: true,
+            consentTextVersion: '1.0'
+          });
+        } catch (consErr) {
+          console.warn('Error saving consent:', consErr);
+        }
       }
 
       setBookingSuccess(appt);

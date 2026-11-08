@@ -129,8 +129,9 @@ export default function DoctorDashboard() {
     }
   };
 
-  // Feature B: Load Patient Documents on Explicit Doctor Demand
+  // Feature B: Load Patient Documents on Explicit Doctor Demand or Auto-Load
   const handleLoadPatientDocuments = async (appointmentId) => {
+    if (!appointmentId) return;
     setLoadingDocs(true);
     setDocsError('');
     try {
@@ -143,6 +144,14 @@ export default function DoctorDashboard() {
       setLoadingDocs(false);
     }
   };
+
+  // Auto-load patient documents when a patient enters active consultation
+  useEffect(() => {
+    const currentId = queueData?.currentPatient?._id;
+    if (currentId && loadedDocsAppointmentId !== currentId) {
+      handleLoadPatientDocuments(currentId);
+    }
+  }, [queueData?.currentPatient?._id]);
 
   // Toggle Reviewed status for a document
   const handleToggleDocReview = async (appointmentId, docId) => {

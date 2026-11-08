@@ -22,7 +22,15 @@ import {
   Heart,
   Stethoscope,
   Pill,
-  HeartPulse
+  HeartPulse,
+  Paperclip,
+  UploadCloud,
+  CheckSquare,
+  Square,
+  Trash2,
+  X,
+  Shield,
+  Eye
 } from 'lucide-react';
 import EmergencyIntakeModal from '../../components/emergency/EmergencyIntakeModal';
 
@@ -38,10 +46,119 @@ export default function PatientDashboard() {
   const [loading, setLoading] = useState(true);
   const [cancellingId, setCancellingId] = useState(null);
 
+  // Document Sharing Modal State for Active/Booked Appointments
+  const [showDocModal, setShowDocModal] = useState(false);
+  const [modalAppt, setModalAppt] = useState(null);
+  const [apptDocs, setApptDocs] = useState([]);
+  const [apptDocLoading, setApptDocLoading] = useState(false);
+  const [availableReports, setAvailableReports] = useState([]);
+  const [availableMedicines, setAvailableMedicines] = useState([]);
+  const [selectedReportIds, setSelectedReportIds] = useState([]);
+  const [selectedMedicineIds, setSelectedMedicineIds] = useState([]);
+  const [uploadFiles, setUploadFiles] = useState([]);
+  const [savingDocs, setSavingDocs] = useState(false);
+  const [docConsent, setDocConsent] = useState(true);
+  const [docTab, setDocTab] = useState('attached'); // 'attached', 'select', 'upload'
+
   const fetchAppointments = () => {
     api.get('/appointments/my')
       .then(res => setAppointments(res.data.appointments || []))
       .catch(err => console.error(err));
+  };
+
+  const handleOpenDocModal = async (appt) => {
+    setModalAppt(appt);
+    setShowDocModal(true);
+    setApptDocLoading(true);
+    setSelectedReportIds([]);
+    setSelectedMedicineIds([]);
+    setUploadFiles([]);
+    setDocConsent(true);
+    setDocTab('attached');
+
+    try {
+      const [docsRes, reportsRes, medsRes] = await Promise.all([
+        api.get(`/appointments/${appt._id}/documents`),
+        api.get('/reports/my').catch(() => ({ data: { reports: [] } })),
+        api.get('/medicines').catch(() => ({ data: { medicines: [] } }))
+      ]);
+
+      setApptDocs(docsRes.data.documents || []);
+      setAvailableReports(reportsRes.data.reports || []);
+      setAvailableMedicines(medsRes.data.medicines || []);
+      if (!docsRes.data.documents || docsRes.data.documents.length === 0) {
+        setDocTab('select');
+      }
+    } catch (err) {
+      console.warn('Error fetching appointment documents:', err);
+    } finally {
+      setApptDocLoading(false);
+    }
+  };
+
+  const toggleSelectReport = (id) => {
+    setSelectedReportIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const toggleSelectMedicine = (id) => {
+    setSelectedMedicineIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const handleFileUpload = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    setUploadFiles(prev => [...prev, ...files]);
+  };
+
+  const removeUploadFile = (idx) => {
+    setUploadFiles(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleSaveAppointmentDocs = async () => {
+    if (!modalAppt) return;
+    setSavingDocs(true);
+    try {
+      if (selectedReportIds.length > 0 || selectedMedicineIds.length > 0) {
+        await api.post(`/appointments/${modalAppt._id}/documents/select`, {
+          reportIds: selectedReportIds,
+          selectedReportIds,
+          medicineRecordIds: selectedMedicineIds,
+          selectedMedicineIds
+        });
+      }
+
+      if (uploadFiles.length > 0) {
+        const formData = new FormData();
+        uploadFiles.forEach(f => {
+          formData.append('files', f);
+          formData.append('documentFile', f);
+        });
+        await api.post(`/appointments/${modalAppt._id}/documents/upload`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+      }
+
+      if (docConsent) {
+        await api.post(`/appointments/${modalAppt._id}/consent`, {
+          consented: true,
+          consentTextVersion: '1.0'
+        });
+      }
+
+      // Refresh list
+      const docsRes = await api.get(`/appointments/${modalAppt._id}/documents`);
+      setApptDocs(docsRes.data.documents || []);
+      setSelectedReportIds([]);
+      setSelectedMedicineIds([]);
+      setUploadFiles([]);
+      setDocTab('attached');
+      fetchAppointments();
+      alert('Documents and reports successfully shared with your doctor!');
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to share documents with doctor.');
+    } finally {
+      setSavingDocs(false);
+    }
   };
 
   useEffect(() => {
@@ -308,6 +425,14 @@ export default function PatientDashboard() {
           </div>
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full md:w-auto">
+            <button
+              onClick={() => handleOpenDocModal(activeAppt)}
+              className="w-full sm:w-auto px-4 py-3 bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 rounded-xl font-bold text-xs transition flex items-center justify-center space-x-1.5 flex-shrink-0 hover:bg-teal-100"
+            >
+              <Paperclip className="w-4 h-4 text-teal-600" />
+              <span>Share / View Reports ({activeAppt.documentsCount || 0})</span>
+            </button>
+
             <Link
               to="/my-queue"
               className="w-full sm:w-auto px-5 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-md transition flex items-center justify-center space-x-2 flex-shrink-0"
@@ -502,6 +627,284 @@ export default function PatientDashboard() {
           <p className="text-xs text-slate-400">No family members saved yet.</p>
         )}
       </div>
+
+      {/* Modal: Share Documents with Doctor */}
+      {showDocModal && modalAppt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4 my-auto">
+            {/* Modal Header */}
+            <div className="flex items-start justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <h3 className="font-bold text-base text-slate-900 dark:text-white flex items-center space-x-2">
+                  <Paperclip className="w-4 h-4 text-teal-600" />
+                  <span>Share Documents with Dr. {modalAppt.doctorId?.userId?.name || 'Physician'}</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Token #{modalAppt.tokenNumber} • {modalAppt.timeSlot} • Documents are securely shared for this consultation.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDocModal(false)}
+                className="p-1 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Sub-Tabs: Attached Docs, Select from Profile, Upload New */}
+            <div className="flex space-x-1 border-b border-slate-200 dark:border-slate-700 pb-2 text-xs">
+              <button
+                type="button"
+                onClick={() => setDocTab('attached')}
+                className={`px-3 py-1.5 rounded-xl font-bold transition ${
+                  docTab === 'attached'
+                    ? 'bg-teal-600 text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                Shared with Doctor ({apptDocs.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setDocTab('select')}
+                className={`px-3 py-1.5 rounded-xl font-bold transition ${
+                  docTab === 'select'
+                    ? 'bg-teal-600 text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                + Pick from Health Profile
+              </button>
+              <button
+                type="button"
+                onClick={() => setDocTab('upload')}
+                className={`px-3 py-1.5 rounded-xl font-bold transition ${
+                  docTab === 'upload'
+                    ? 'bg-teal-600 text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                + Upload New Files ({uploadFiles.length})
+              </button>
+            </div>
+
+            {/* TAB 1: Currently Attached Documents */}
+            {docTab === 'attached' && (
+              <div className="space-y-3">
+                {apptDocLoading ? (
+                  <p className="text-xs text-slate-400 text-center py-6">Loading attached consultation documents...</p>
+                ) : apptDocs.length === 0 ? (
+                  <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-2xl text-center space-y-2 border border-dashed">
+                    <p className="text-xs text-slate-500 font-medium">No documents currently attached to this appointment.</p>
+                    <button
+                      type="button"
+                      onClick={() => setDocTab('select')}
+                      className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-xs"
+                    >
+                      Pick Records from Profile →
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                    {apptDocs.map(doc => (
+                      <div
+                        key={doc._id}
+                        className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center justify-between text-xs"
+                      >
+                        <div className="space-y-0.5">
+                          <span className="font-bold text-slate-900 dark:text-white block truncate max-w-sm">
+                            {doc.title}
+                          </span>
+                          <span className="text-[10px] text-slate-400 block capitalize">
+                            Type: {doc.reportType || doc.documentType} • Access verified for Dr. {modalAppt.doctorId?.userId?.name || 'Physician'}
+                          </span>
+                        </div>
+                        {doc.fileUrl && (
+                          <a
+                            href={doc.fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 rounded-lg bg-white dark:bg-slate-700 hover:bg-teal-50 text-teal-600 border flex items-center space-x-1 text-[11px] font-semibold"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>View</span>
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB 2: Select from Health Profile Reports & Medicines */}
+            {docTab === 'select' && (
+              <div className="space-y-3 text-xs">
+                <div>
+                  <span className="font-bold text-slate-800 dark:text-slate-200 block mb-1">
+                    Select Medical Reports from your profile:
+                  </span>
+                  <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                    {availableReports.length === 0 ? (
+                      <p className="text-[11px] text-slate-400 py-2">No medical reports saved in your profile yet.</p>
+                    ) : (
+                      availableReports.map(rep => {
+                        const isSelected = selectedReportIds.includes(rep._id);
+                        return (
+                          <div
+                            key={rep._id}
+                            onClick={() => toggleSelectReport(rep._id)}
+                            className={`p-2.5 rounded-xl border flex items-center justify-between cursor-pointer transition ${
+                              isSelected
+                                ? 'bg-teal-50 dark:bg-teal-950/40 border-teal-500'
+                                : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700'
+                            }`}
+                          >
+                            <div className="flex items-center space-x-2">
+                              {isSelected ? (
+                                <CheckSquare className="w-4 h-4 text-teal-600 flex-shrink-0" />
+                              ) : (
+                                <Square className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                              )}
+                              <span className="font-bold text-slate-800 dark:text-slate-200 truncate max-w-xs">
+                                {rep.title} ({rep.reportType})
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-slate-400">
+                              {new Date(rep.reportDate || rep.createdAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <span className="font-bold text-slate-800 dark:text-slate-200 block mb-1">
+                    Select Medicines from "My Medicines":
+                  </span>
+                  <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                    {availableMedicines.length === 0 ? (
+                      <p className="text-[11px] text-slate-400 py-2">No medicines saved in My Medicines.</p>
+                    ) : (
+                      availableMedicines.map(med => {
+                        const isSelected = selectedMedicineIds.includes(med._id);
+                        return (
+                          <div
+                            key={med._id}
+                            onClick={() => toggleSelectMedicine(med._id)}
+                            className={`p-2.5 rounded-xl border flex items-center justify-between cursor-pointer transition ${
+                              isSelected
+                                ? 'bg-teal-50 dark:bg-teal-950/40 border-teal-500'
+                                : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700'
+                            }`}
+                          >
+                            <div className="flex items-center space-x-2">
+                              {isSelected ? (
+                                <CheckSquare className="w-4 h-4 text-teal-600 flex-shrink-0" />
+                              ) : (
+                                <Square className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                              )}
+                              <span className="font-bold text-slate-800 dark:text-slate-200 truncate max-w-xs">
+                                {med.brandName} {med.strength} ({med.dosageForm})
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-slate-400 capitalize">
+                              {med.status.replace('_', ' ')}
+                            </span>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 3: Upload New Files */}
+            {docTab === 'upload' && (
+              <div className="space-y-3 text-xs">
+                <label className="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl p-4 text-center block cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
+                  <UploadCloud className="w-8 h-8 text-teal-600 mx-auto mb-1.5" />
+                  <span className="font-bold text-slate-800 dark:text-slate-200 block text-xs">
+                    Click to select report files (PDF, JPG, PNG &lt; 10MB)
+                  </span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">
+                    Files will be synced to your health records and shared with Dr. {modalAppt.doctorId?.userId?.name || 'Physician'}
+                  </span>
+                  <input
+                    type="file"
+                    multiple
+                    accept=".pdf,image/png,image/jpeg,image/webp"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                  />
+                </label>
+
+                {uploadFiles.length > 0 && (
+                  <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                    {uploadFiles.map((file, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs">
+                        <span className="truncate max-w-sm font-medium">{file.name} ({(file.size / 1024).toFixed(0)} KB)</span>
+                        <button
+                          type="button"
+                          onClick={() => removeUploadFile(idx)}
+                          className="text-rose-500 hover:text-rose-700 p-1"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Consent Confirmation Box */}
+            <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-2xl text-xs space-y-1.5">
+              <label className="flex items-start space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={docConsent}
+                  onChange={e => setDocConsent(e.target.checked)}
+                  className="mt-0.5 rounded text-teal-600 focus:ring-teal-500 w-4 h-4 cursor-pointer"
+                />
+                <span className="text-[11px] text-amber-900 dark:text-amber-200 font-medium leading-snug">
+                  I consent to share the selected documents with Dr. {modalAppt.doctorId?.userId?.name || 'Assigned Doctor'} for this consultation. The doctor may use assistive software to help review them.
+                </span>
+              </label>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex space-x-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setShowDocModal(false)}
+                className="px-4 py-2.5 border rounded-xl font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs"
+              >
+                Close
+              </button>
+              {(selectedReportIds.length > 0 || selectedMedicineIds.length > 0 || uploadFiles.length > 0) && (
+                <button
+                  type="button"
+                  disabled={savingDocs || !docConsent}
+                  onClick={handleSaveAppointmentDocs}
+                  className="flex-1 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl shadow-md transition disabled:opacity-50 text-xs flex items-center justify-center space-x-1.5"
+                >
+                  <Shield className="w-3.5 h-3.5" />
+                  <span>
+                    {savingDocs
+                      ? 'Sharing Records...'
+                      : `Confirm & Share ${selectedReportIds.length + selectedMedicineIds.length + uploadFiles.length} Item(s) with Doctor`}
+                  </span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Emergency Intake Modal */}
       <EmergencyIntakeModal

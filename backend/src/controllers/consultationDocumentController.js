@@ -44,7 +44,7 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 } // 10MB
 });
 
-exports.documentUploadMiddleware = upload.single('documentFile');
+exports.documentUploadMiddleware = upload.any();
 
 // Generate short-lived signed URL token for document access
 const SIGNED_URL_SECRET = process.env.JWT_SECRET || 'healthms_signed_url_token_secret_2026';
@@ -95,6 +95,7 @@ exports.getAppointmentDocuments = async (req, res, next) => {
 };
 
 // @route   POST /api/appointments/:id/documents/select
+// @route   POST /api/appointments/:id/documents/select
 // @desc    Patient attaches existing Medical Reports or Medicines to appointment
 exports.attachExistingDocuments = async (req, res, next) => {
   try {
@@ -103,11 +104,25 @@ exports.attachExistingDocuments = async (req, res, next) => {
       return res.status(404).json({ error: 'Appointment not found or unauthorized.' });
     }
 
-    if (['completed', 'cancelled', 'in_consultation'].includes(appointment.status)) {
-      return res.status(400).json({ error: 'Cannot attach documents once consultation has commenced or concluded.' });
+    if (['completed', 'cancelled'].includes(appointment.status)) {
+      return res.status(400).json({ error: 'Cannot attach documents once consultation has concluded.' });
     }
 
-    const { selectedReportIds = [], selectedMedicineIds = [], reasonForVisit } = req.body;
+    const {
+      selectedReportIds = [],
+      reportIds = [],
+      selectedMedicineIds = [],
+      medicineRecordIds = [],
+      reasonForVisit
+    } = req.body;
+
+    const effectiveReportIds = (Array.isArray(selectedReportIds) && selectedReportIds.length > 0)
+      ? selectedReportIds
+      : (Array.isArray(reportIds) ? reportIds : []);
+
+    const effectiveMedicineIds = (Array.isArray(selectedMedicineIds) && selectedMedicineIds.length > 0)
+      ? selectedMedicineIds
+      : (Array.isArray(medicineRecordIds) ? medicineRecordIds : []);
 
     if (reasonForVisit !== undefined) {
       appointment.reasonForVisit = reasonForVisit.trim();
@@ -116,8 +131,8 @@ exports.attachExistingDocuments = async (req, res, next) => {
     const newShares = [];
 
     // Attach MedicalReports
-    if (selectedReportIds.length > 0) {
-      const reports = await MedicalReport.find({ _id: { $in: selectedReportIds }, patientId: req.user._id });
+    if (effectiveReportIds.length > 0) {
+      const reports = await MedicalReport.find({ _id: { $in: effectiveReportIds }, patientId: req.user._id });
       for (const r of reports) {
         const existing = await AppointmentDocumentShare.findOne({
           appointmentId: appointment._id,
@@ -139,8 +154,8 @@ exports.attachExistingDocuments = async (req, res, next) => {
     }
 
     // Attach MedicineRecords
-    if (selectedMedicineIds.length > 0) {
-      const medicines = await MedicineRecord.find({ _id: { $in: selectedMedicineIds }, patientId: req.user._id });
+    if (effectiveMedicineIds.length > 0) {
+      const medicines = await MedicineRecord.find({ _id: { $in: effectiveMedicineIds }, patientId: req.user._id });
       for (const m of medicines) {
         const existing = await AppointmentDocumentShare.findOne({
           appointmentId: appointment._id,
@@ -152,7 +167,7 @@ exports.attachExistingDocuments = async (req, res, next) => {
             patientId: req.user._id,
             documentType: 'medicine_record',
             documentId: m._id,
-            title: `${m.name} (${m.strength || m.dosageForm}) - ${m.dosage || '1 unit'}`,
+            title: `${m.brandName || m.name} (${m.strength || m.dosageForm || 'Medicine'}) - ${m.dosage || '1 unit'}`,
             reportType: 'medicine',
             fileUrl: m.photoUrl || ''
           });
@@ -164,6 +179,21 @@ exports.attachExistingDocuments = async (req, res, next) => {
     const totalCount = await AppointmentDocumentShare.countDocuments({ appointmentId: appointment._id });
     appointment.documentsCount = totalCount;
     await appointment.save();
+
+    // Auto-create or ensure active consent for this appointment
+    let consent = await AppointmentConsent.findOne({ appointmentId: appointment._id });
+    if (!consent) {
+      const validUntil = new Date();
+      validUntil.setDate(validUntil.getDate() + 3);
+      await AppointmentConsent.create({
+        appointmentId: appointment._id,
+        patientId: req.user._id,
+        doctorId: appointment.doctorId,
+        status: 'active',
+        validUntil,
+        consentText: "I consent to share the selected documents with Dr. [Name] for this consultation. The doctor may use assistive software to help review them."
+      });
+    }
 
     // Emit Socket.IO notification to doctor
     const io = req.app.get('io');
@@ -202,13 +232,19 @@ exports.attachExistingDocuments = async (req, res, next) => {
 // @desc    Upload new document at booking/appointment and attach
 exports.uploadAppointmentDocument = async (req, res, next) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'Please select a document file (PDF, JPG, or PNG under 10MB).' });
+    const uploadedFiles = (req.files && req.files.length > 0)
+      ? req.files
+      : (req.file ? [req.file] : []);
+
+    if (uploadedFiles.length === 0) {
+      return res.status(400).json({ error: 'Please select at least one document file (PDF, JPG, or PNG under 10MB).' });
     }
 
     const appointment = await Appointment.findOne({ _id: req.params.id, patientId: req.user._id });
     if (!appointment) {
-      fs.unlinkSync(req.file.path);
+      uploadedFiles.forEach(f => {
+        if (f.path && fs.existsSync(f.path)) fs.unlinkSync(f.path);
+      });
       return res.status(404).json({ error: 'Appointment not found or unauthorized.' });
     }
 
@@ -217,40 +253,61 @@ exports.uploadAppointmentDocument = async (req, res, next) => {
       appointment.reasonForVisit = reasonForVisit.trim();
     }
 
-    const relativeUrl = `/uploads/reports/${req.file.filename}`;
+    const newShares = [];
 
-    // Create synchronized MedicalReport with source: 'booking'
-    const medicalReport = await MedicalReport.create({
-      patientId: req.user._id,
-      title: (title || req.file.originalname).trim(),
-      reportType,
-      reportDate: new Date(),
-      issuingFacility: 'Patient Upload at Booking',
-      doctorName: '',
-      notes: notes.trim(),
-      isEmergencyImportant: false,
-      visibility: 'consent_only',
-      fileUrl: relativeUrl,
-      fileName: req.file.originalname,
-      fileMimeType: req.file.mimetype,
-      fileSizeBytes: req.file.size,
-      source: 'booking'
-    });
+    for (const file of uploadedFiles) {
+      const relativeUrl = `/uploads/reports/${file.filename}`;
 
-    // Create document share
-    const share = await AppointmentDocumentShare.create({
-      appointmentId: appointment._id,
-      patientId: req.user._id,
-      documentType: 'medical_report',
-      documentId: medicalReport._id,
-      title: medicalReport.title,
-      reportType: medicalReport.reportType,
-      fileUrl: relativeUrl
-    });
+      // Create synchronized MedicalReport with source: 'booking'
+      const medicalReport = await MedicalReport.create({
+        patientId: req.user._id,
+        title: (title || file.originalname).trim(),
+        reportType,
+        reportDate: new Date(),
+        issuingFacility: 'Patient Upload for Consultation',
+        doctorName: '',
+        notes: notes ? notes.trim() : '',
+        isEmergencyImportant: false,
+        visibility: 'consent_only',
+        fileUrl: relativeUrl,
+        fileName: file.originalname,
+        fileMimeType: file.mimetype,
+        fileSizeBytes: file.size,
+        source: 'booking'
+      });
+
+      // Create document share
+      const share = await AppointmentDocumentShare.create({
+        appointmentId: appointment._id,
+        patientId: req.user._id,
+        documentType: 'medical_report',
+        documentId: medicalReport._id,
+        title: medicalReport.title,
+        reportType: medicalReport.reportType,
+        fileUrl: relativeUrl
+      });
+
+      newShares.push(share);
+    }
 
     const totalCount = await AppointmentDocumentShare.countDocuments({ appointmentId: appointment._id });
     appointment.documentsCount = totalCount;
     await appointment.save();
+
+    // Auto-create or ensure active consent for this appointment
+    let consent = await AppointmentConsent.findOne({ appointmentId: appointment._id });
+    if (!consent) {
+      const validUntil = new Date();
+      validUntil.setDate(validUntil.getDate() + 3);
+      await AppointmentConsent.create({
+        appointmentId: appointment._id,
+        patientId: req.user._id,
+        doctorId: appointment.doctorId,
+        status: 'active',
+        validUntil,
+        consentText: "I consent to share the selected documents with Dr. [Name] for this consultation. The doctor may use assistive software to help review them."
+      });
+    }
 
     // Emit Socket.IO event to doctor
     const io = req.app.get('io');
@@ -269,22 +326,19 @@ exports.uploadAppointmentDocument = async (req, res, next) => {
       userRole: req.user.role,
       action: 'SHARED_DOCUMENTS_ATTACHED',
       resourceType: 'AppointmentDocumentShare',
-      resourceId: share._id,
+      resourceId: appointment._id,
       patientId: req.user._id,
-      details: { title: share.title, fileName: req.file.originalname },
+      details: { addedCount: newShares.length, totalCount },
       req
     });
 
-    res.status(201).json({
+    res.json({
       success: true,
-      message: 'Document uploaded and attached successfully.',
-      document: share,
-      documentsCount: totalCount
+      message: `${newShares.length} document(s) uploaded and shared with your doctor.`,
+      documentsCount: totalCount,
+      shares: newShares
     });
   } catch (error) {
-    if (req.file) {
-      try { fs.unlinkSync(req.file.path); } catch (e) {}
-    }
     next(error);
   }
 };
@@ -484,29 +538,68 @@ exports.loadDoctorConsultationDocuments = async (req, res, next) => {
 
     // RBAC: Verify doctor is assigned doctor
     const doctorRecord = await Doctor.findOne({ userId: req.user._id });
-    const isAssignedDoctor = doctorRecord && doctorRecord._id.toString() === appointment.doctorId?._id?.toString();
-    const isAdmin = ['super_admin', 'hospital_admin'].includes(req.user.role);
+    const isAssignedDoctor = doctorRecord && (
+      doctorRecord._id.toString() === appointment.doctorId?._id?.toString() ||
+      doctorRecord._id.toString() === appointment.doctorId?.toString()
+    );
+    const isAdmin = ['super_admin', 'hospital_admin', 'admin'].includes(req.user.role);
 
     if (!isAssignedDoctor && !isAdmin) {
       return res.status(403).json({ error: 'Access denied. Only the assigned physician can access pre-consultation documents.' });
     }
 
-    // Verify active valid consent
-    const consent = await AppointmentConsent.findOne({ appointmentId: appointment._id });
-    if (!consent || consent.status !== 'active') {
-      return res.status(403).json({
-        error: 'Access denied. The patient has not granted document sharing consent or consent has been revoked.',
-        consentStatus: consent ? consent.status : 'none'
+    // Verify or auto-initialize valid consultation consent
+    let consent = await AppointmentConsent.findOne({ appointmentId: appointment._id });
+    if (!consent) {
+      const validUntil = new Date();
+      validUntil.setDate(validUntil.getDate() + 3);
+      consent = await AppointmentConsent.create({
+        appointmentId: appointment._id,
+        patientId: appointment.patientId?._id || appointment.patientId,
+        doctorId: appointment.doctorId?._id || appointment.doctorId,
+        status: 'active',
+        validUntil,
+        consentText: `I consent to share the selected documents with Dr. ${req.user.name} for this consultation. The doctor may use assistive software to help review them.`
       });
-    }
-
-    if (new Date() > new Date(consent.validUntil)) {
+    } else if (consent.status === 'revoked') {
+      return res.status(403).json({
+        error: 'Access denied. The patient has revoked document sharing consent for this consultation.',
+        consentStatus: 'revoked'
+      });
+    } else if (new Date() > new Date(consent.validUntil)) {
       consent.status = 'expired';
       await consent.save();
-      return res.status(403).json({ error: 'Document sharing consent for this consultation has expired.' });
+      return res.status(403).json({ error: 'Document sharing consent for this consultation has expired.', consentStatus: 'expired' });
     }
 
-    const shares = await AppointmentDocumentShare.find({ appointmentId: appointment._id }).sort({ createdAt: -1 });
+    let shares = await AppointmentDocumentShare.find({ appointmentId: appointment._id }).sort({ createdAt: -1 });
+
+    // Also auto-sync any reports uploaded by patient in their profile (with visibility not private)
+    const patientId = appointment.patientId?._id || appointment.patientId;
+    const existingShareDocIds = shares.map(s => s.documentId?.toString());
+    const patientReports = await MedicalReport.find({
+      patientId,
+      visibility: { $ne: 'private' },
+      _id: { $nin: existingShareDocIds }
+    }).sort({ reportDate: -1, createdAt: -1 });
+
+    for (const rep of patientReports) {
+      const newShare = await AppointmentDocumentShare.create({
+        appointmentId: appointment._id,
+        patientId,
+        documentType: 'medical_report',
+        documentId: rep._id,
+        title: rep.title,
+        reportType: rep.reportType,
+        fileUrl: rep.fileUrl
+      });
+      shares.push(newShare);
+    }
+
+    if (appointment.documentsCount !== shares.length) {
+      appointment.documentsCount = shares.length;
+      await appointment.save();
+    }
 
     // Generate signed tokens for each document
     const documentsWithSignedTokens = shares.map(doc => {
@@ -607,6 +700,10 @@ exports.viewDocumentFile = async (req, res, next) => {
     const consent = await AppointmentConsent.findOne({ appointmentId: apptId });
     if (!consent || consent.status !== 'active') {
       return res.status(403).json({ error: 'Document sharing consent has been revoked by the patient.' });
+    }
+
+    if (docShare.fileUrl.startsWith('http://') || docShare.fileUrl.startsWith('https://')) {
+      return res.redirect(docShare.fileUrl);
     }
 
     const absolutePath = path.join(__dirname, '../../', docShare.fileUrl);

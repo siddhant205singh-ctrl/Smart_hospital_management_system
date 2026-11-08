@@ -1,5 +1,9 @@
 const HealthRecord = require('../models/HealthRecord');
+const MedicalReport = require('../models/MedicalReport');
+const Hospital = require('../models/Hospital');
 const Consent = require('../models/Consent');
+const AppointmentConsent = require('../models/AppointmentConsent');
+const Appointment = require('../models/Appointment');
 const Doctor = require('../models/Doctor');
 const { logAudit } = require('../middleware/auditMiddleware');
 
@@ -11,7 +15,7 @@ exports.getPatientTimeline = async (req, res, next) => {
 
     // Access control check:
     // If patient requesting their own records -> Allowed
-    // If doctor requesting -> check active Consent grant
+    // If doctor requesting -> check active Consent grant OR active appointment with patient
     if (req.user.role === 'doctor') {
       const doctor = await Doctor.findOne({ userId: req.user._id });
       if (!doctor) return res.status(403).json({ error: 'Doctor record not found' });
@@ -23,7 +27,20 @@ exports.getPatientTimeline = async (req, res, next) => {
         validUntil: { $gte: new Date() }
       });
 
-      if (!activeConsent) {
+      const activeAppt = await Appointment.findOne({
+        patientId,
+        doctorId: doctor._id,
+        status: { $in: ['scheduled', 'checked_in', 'called', 'in_consultation', 'completed'] }
+      });
+
+      const apptConsent = await AppointmentConsent.findOne({
+        patientId,
+        doctorId: doctor._id,
+        status: 'active',
+        validUntil: { $gte: new Date() }
+      });
+
+      if (!activeConsent && !activeAppt && !apptConsent) {
         await logAudit({
           userId: req.user._id,
           userName: req.user.name,
@@ -31,7 +48,7 @@ exports.getPatientTimeline = async (req, res, next) => {
           action: 'ACCESS_DENIED_NO_CONSENT',
           resourceType: 'HealthRecord',
           patientId,
-          details: { reason: 'No active consent granted by patient' }
+          details: { reason: 'No active consent or consultation appointment' }
         });
 
         return res.status(403).json({
@@ -52,6 +69,35 @@ exports.getPatientTimeline = async (req, res, next) => {
         populate: { path: 'userId', select: 'name avatar' }
       })
       .sort({ date: -1 });
+
+    // Also include MedicalReports that might not be in HealthRecord
+    const existingFileUrls = new Set(records.map(r => r.fileUrl).filter(Boolean));
+    const reports = await MedicalReport.find({
+      patientId,
+      visibility: { $ne: 'private' }
+    }).sort({ reportDate: -1, createdAt: -1 });
+
+    for (const rep of reports) {
+      if (rep.fileUrl && !existingFileUrls.has(rep.fileUrl)) {
+        records.push({
+          _id: rep._id,
+          type: rep.reportType || 'lab_report',
+          title: rep.title,
+          date: rep.reportDate || rep.createdAt,
+          fileUrl: rep.fileUrl,
+          fileSize: rep.fileSizeBytes || 0,
+          fileType: rep.fileMimeType || 'application/pdf',
+          aiSummary: rep.notes ? `[${rep.issuingFacility || 'Report'}]: ${rep.notes}` : `Uploaded ${rep.reportType} from ${rep.issuingFacility || 'patient'}`,
+          metadata: {
+            facility: rep.issuingFacility,
+            doctorName: rep.doctorName
+          }
+        });
+      }
+    }
+
+    // Sort descending by date
+    records.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
 
     await logAudit({
       userId: req.user._id,
