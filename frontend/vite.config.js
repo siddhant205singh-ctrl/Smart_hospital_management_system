@@ -20,5 +20,18 @@ export default defineConfig({
         ws: true,
       }
     }
+  },
+  build: {
+    chunkSizeWarningLimit: 2000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-ui': ['lucide-react', 'framer-motion', 'clsx', 'tailwind-merge', 'canvas-confetti'],
+          'vendor-charts': ['recharts'],
+          'vendor-utils': ['axios', 'socket.io-client', 'i18next', 'react-i18next']
+        }
+      }
+    }
   }
 })
