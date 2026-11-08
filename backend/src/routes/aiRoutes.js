@@ -10,11 +10,14 @@ const {
   getSessionMessages,
   deleteSession,
   getChatHistory,
-  updateAssistantSettings
+  updateAssistantSettings,
+  chatUploadMiddleware,
+  uploadChatAttachment
 } = require('../controllers/aiController');
 const { protect, optionalProtect } = require('../middleware/authMiddleware');
 
 // Chat & Streaming
+router.post('/upload-attachment', optionalProtect, chatUploadMiddleware, uploadChatAttachment);
 router.post('/chat', optionalProtect, chatWithAssistant);
 router.post('/chat/stream', optionalProtect, chatWithAssistantStream);
 router.post('/execute-action', protect, executeAction);

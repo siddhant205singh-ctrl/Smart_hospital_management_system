@@ -23,7 +23,11 @@ import {
   Globe,
   Trash2,
   ChevronRight,
-  ShieldAlert
+  ShieldAlert,
+  Paperclip,
+  FileText,
+  Image as ImageIcon,
+  Loader2
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -140,6 +144,32 @@ export default function AssistantChatView({ isWidget = false, onClose = null, on
 
   const messagesEndRef = useRef(null);
   const speechRecognitionRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const [attachedFile, setAttachedFile] = useState(null);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
+
+  const handleFileSelect = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert('File size exceeds 10MB limit.');
+      return;
+    }
+
+    setUploadingAttachment(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await api.post('/ai/upload-attachment', formData);
+      setAttachedFile(res.data.attachment);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to upload attachment');
+    } finally {
+      setUploadingAttachment(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   // Initialize speech recognition if available
   useEffect(() => {
@@ -317,13 +347,21 @@ export default function AssistantChatView({ isWidget = false, onClose = null, on
     const symptomsToSend = customSymptoms || selectedSymptoms;
     const query = (textToSend || input).trim();
 
-    if (!query && symptomsToSend.length === 0) return;
+    if (!query && symptomsToSend.length === 0 && !attachedFile) return;
 
-    const displayMsg = query || `Reporting symptoms: ${symptomsToSend.join(', ')}`;
-    const userMsg = { sender: 'user', text: displayMsg, isEmergency: false };
+    const displayMsg = query || (attachedFile ? `Please analyze this attached ${attachedFile.mimeType?.includes('pdf') ? 'document' : 'image'}.` : `Reporting symptoms: ${symptomsToSend.join(', ')}`);
+    const currentAttachment = attachedFile;
+
+    const userMsg = {
+      sender: 'user',
+      text: displayMsg,
+      attachment: currentAttachment,
+      isEmergency: false
+    };
 
     setMessages(prev => [...prev, userMsg]);
     setInput('');
+    setAttachedFile(null);
     setSelectedSymptoms([]);
     setLoading(true);
     setStatusMessage('Consulting HealthMS AI engine...');
@@ -342,7 +380,12 @@ export default function AssistantChatView({ isWidget = false, onClose = null, on
           message: query,
           currentSymptoms: symptomsToSend,
           sessionId: activeSessionId,
-          language: chatLanguage
+          language: chatLanguage,
+          attachment: currentAttachment ? {
+            fileUrl: currentAttachment.fileUrl,
+            fileName: currentAttachment.fileName,
+            mimeType: currentAttachment.mimeType
+          } : null
         })
       });
 
@@ -419,7 +462,12 @@ export default function AssistantChatView({ isWidget = false, onClose = null, on
           message: query,
           currentSymptoms: symptomsToSend,
           sessionId: activeSessionId,
-          language: chatLanguage
+          language: chatLanguage,
+          attachment: currentAttachment ? {
+            fileUrl: currentAttachment.fileUrl,
+            fileName: currentAttachment.fileName,
+            mimeType: currentAttachment.mimeType
+          } : null
         });
 
         setMessages(prev => [
@@ -597,6 +645,34 @@ export default function AssistantChatView({ isWidget = false, onClose = null, on
                 <div className="flex items-center space-x-2 text-rose-600 dark:text-rose-400 font-bold mb-2">
                   <AlertTriangle className="w-5 h-5 text-rose-600 animate-bounce" />
                   <span>EMERGENCY MEDICAL RED ALERT</span>
+                </div>
+              )}
+
+              {/* Render Attached Image/Document in Chat Bubble */}
+              {m.attachment && (
+                <div className="mb-2">
+                  {m.attachment.mimeType?.startsWith('image/') || m.attachment.fileUrl?.match(/\.(jpg|jpeg|png|webp|heic)$/i) ? (
+                    <div className="rounded-xl overflow-hidden border border-white/20 max-w-[220px]">
+                      <img
+                        src={m.attachment.fileUrl}
+                        alt={m.attachment.fileName || 'Attachment'}
+                        className="w-full h-auto max-h-36 object-cover bg-black/10"
+                      />
+                      <span className="text-[10px] px-2 py-0.5 bg-black/50 block truncate text-slate-100">
+                        {m.attachment.fileName}
+                      </span>
+                    </div>
+                  ) : (
+                    <a
+                      href={m.attachment.fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs text-white"
+                    >
+                      <FileText className="w-4 h-4" />
+                      <span className="truncate max-w-[180px]">{m.attachment.fileName || 'View Document'}</span>
+                    </a>
+                  )}
                 </div>
               )}
 
@@ -782,8 +858,59 @@ export default function AssistantChatView({ isWidget = false, onClose = null, on
         ))}
       </div>
 
+      {/* Attached file preview chip */}
+      {attachedFile && (
+        <div className="px-3.5 py-1.5 bg-teal-50 dark:bg-teal-950/40 border-t border-teal-200 dark:border-teal-800 flex items-center justify-between text-xs text-teal-900 dark:text-teal-200 animate-in fade-in">
+          <div className="flex items-center space-x-2 truncate">
+            {attachedFile.mimeType?.startsWith('image/') ? (
+              <img src={attachedFile.fileUrl} alt="preview" className="w-6 h-6 rounded object-cover border border-teal-300 dark:border-teal-700" />
+            ) : (
+              <FileText className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+            )}
+            <span className="font-semibold truncate max-w-[200px] sm:max-w-xs">{attachedFile.fileName}</span>
+            <span className="text-[10px] text-teal-600 dark:text-teal-400 bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded-full border border-teal-200 dark:border-teal-800">
+              Attached
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setAttachedFile(null)}
+            className="p-1 rounded-full hover:bg-teal-200 dark:hover:bg-teal-800 text-teal-600 dark:text-teal-400"
+            title="Remove attachment"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* Input Bar */}
       <div className="p-3 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center space-x-2">
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileSelect}
+          accept="image/jpeg,image/png,image/webp,image/heic,application/pdf"
+          className="hidden"
+        />
+
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploadingAttachment}
+          className={`p-2.5 rounded-xl border transition ${
+            attachedFile
+              ? 'bg-teal-100 border-teal-400 text-teal-800 dark:bg-teal-950/60 dark:border-teal-700 dark:text-teal-300'
+              : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 hover:text-teal-600'
+          }`}
+          title="Attach medicine photo or lab report (JPG, PNG, PDF)"
+        >
+          {uploadingAttachment ? (
+            <Loader2 className="w-4 h-4 animate-spin text-teal-600" />
+          ) : (
+            <Paperclip className="w-4 h-4" />
+          )}
+        </button>
+
         <button
           type="button"
           onClick={toggleVoiceInput}
@@ -808,16 +935,18 @@ export default function AssistantChatView({ isWidget = false, onClose = null, on
             }
           }}
           placeholder={
-            user
-              ? 'Ask health question, describe symptoms, or ask "What should I do now?"...'
-              : 'Ask a question, describe symptoms, or search doctors...'
+            attachedFile
+              ? 'Ask something about this attachment (or hit Enter to scan)...'
+              : user
+              ? 'Ask health question, describe symptoms, or attach a photo...'
+              : 'Ask a question, describe symptoms, or attach a photo...'
           }
           className="flex-1 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-500"
         />
 
         <button
           onClick={() => sendMessage()}
-          disabled={loading || (!input.trim() && selectedSymptoms.length === 0)}
+          disabled={loading || uploadingAttachment || (!input.trim() && selectedSymptoms.length === 0 && !attachedFile)}
           className="p-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white disabled:opacity-40 transition shadow-sm"
           title="Send message"
         >

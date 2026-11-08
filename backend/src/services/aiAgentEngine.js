@@ -85,6 +85,12 @@ CORE PRINCIPLES & GUIDELINES:
 7. LANGUAGE CAPABILITY:
    - Automatically match the user's language: English, Hindi (हिन्दी), or Hinglish.
    - If user asks in Hindi or Hinglish, answer fluently in that language with warm healthcare terminology.
+
+8. MULTIMODAL ATTACHMENTS & DOCUMENT READING:
+   - When the user attaches an image or report, analyze the attached document or image directly!
+   - For medicine packaging, blister strips, or prescription slips: identify the medicine name, active salt/generic, strength, dosage form, manufacturer, and warnings. You can use scan_medicine or read the image directly.
+   - For lab reports or diagnostic tests (blood panels, urine tests, ECGs, radiology): explain key parameters and normal reference ranges in plain, reassuring language. You can use summarize_report or read the document directly.
+   - Always encourage the user to discuss abnormal findings with their consulting doctor.
 `.trim();
 }
 
@@ -127,6 +133,7 @@ const GEMINI_MODELS = [
  */
 async function runAgentTurn({
   message,
+  attachment = null,
   history = [],
   user = null,
   role = 'visitor',
@@ -137,6 +144,11 @@ async function runAgentTurn({
   const allowHealthData = user && user.privacySettings?.useHealthDataInAssistant !== false;
   const systemPrompt = buildSystemPrompt(role, user, language);
   const geminiTools = getGeminiToolsForRole(role, allowHealthData);
+
+  // Ensure attachment is present in sessionContext for tool execution
+  if (attachment) {
+    sessionContext.attachment = attachment;
+  }
 
   // Format multi-turn conversation history for Gemini v1beta
   const contents = [];
@@ -157,10 +169,21 @@ async function runAgentTurn({
     }
   }
 
-  // Add the current user turn
+  // Add the current user turn (with multimodal attachment if provided)
+  const currentTurnParts = [{ text: redactPII(message || 'Please review and analyze this attached file.') }];
+  if (attachment && attachment.buffer) {
+    const isPdf = attachment.mimeType === 'application/pdf' || attachment.fileName?.toLowerCase().endsWith('.pdf');
+    currentTurnParts.push({
+      inlineData: {
+        mimeType: isPdf ? 'application/pdf' : (attachment.mimeType || 'image/jpeg'),
+        data: attachment.buffer.toString('base64')
+      }
+    });
+  }
+
   contents.push({
     role: 'user',
-    parts: [{ text: redactPII(message) }]
+    parts: currentTurnParts
   });
 
   const executedTools = [];

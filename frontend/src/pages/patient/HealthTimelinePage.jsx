@@ -24,6 +24,19 @@ export default function HealthTimelinePage() {
   const [filterType, setFilterType] = useState('all');
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [activeSummaryModal, setActiveSummaryModal] = useState(null);
+  const [summarizingId, setSummarizingId] = useState(null);
+
+  const handleGenerateSummary = async (recordId) => {
+    setSummarizingId(recordId);
+    try {
+      const res = await api.post(`/reports/${recordId}/summarize`);
+      setRecords(prev => prev.map(r => r._id === recordId ? { ...r, aiSummary: res.data.summaryText } : r));
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to generate AI report summary');
+    } finally {
+      setSummarizingId(null);
+    }
+  };
 
   // Upload Form State
   const [newRecord, setNewRecord] = useState({
@@ -209,6 +222,31 @@ export default function HealthTimelinePage() {
                     <span className="px-2 py-0.5 bg-rose-200 dark:bg-rose-900 text-rose-800 dark:text-rose-100 text-[10px] font-bold rounded-full">
                       Voluntary & Unpaid
                     </span>
+                  </div>
+                )}
+
+                {/* Document File & AI Actions */}
+                {r.fileUrl && (
+                  <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <a
+                      href={r.fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 flex items-center space-x-1"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>View Document</span>
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => handleGenerateSummary(r._id)}
+                      disabled={summarizingId === r._id}
+                      className="px-3 py-1 rounded-lg text-xs font-bold bg-amber-50 hover:bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800 transition flex items-center space-x-1 disabled:opacity-50"
+                      title="Analyze document with clinical AI to extract findings"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                      <span>{summarizingId === r._id ? 'Analyzing with AI...' : r.aiSummary ? 'Regenerate AI Summary' : '✨ Generate AI Summary'}</span>
+                    </button>
                   </div>
                 )}
               </div>

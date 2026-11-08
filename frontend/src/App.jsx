@@ -5,6 +5,7 @@ import Footer from './components/layout/Footer';
 import MobileBottomNav from './components/layout/MobileBottomNav';
 import SmartCareChatWidget from './components/chatbot/SmartCareChatWidget';
 import RoleDashboardRouter from './components/auth/RoleDashboardRouter';
+import ProtectedRoute from './components/auth/ProtectedRoute';
 
 // Pages
 import LandingPage from './pages/landing/LandingPage';
@@ -56,13 +57,13 @@ export default function App() {
           
           {/* Role-governed Dashboards */}
           <Route path="/dashboard" element={<RoleDashboardRouter />} />
-          <Route path="/patient-dashboard" element={<PatientDashboard />} />
-          <Route path="/doctor-console" element={<DoctorDashboard />} />
-          <Route path="/doctor-dashboard" element={<DoctorDashboard />} />
-          <Route path="/blood-bank-officer" element={<BloodBankDashboard />} />
-          <Route path="/blood-officer-dashboard" element={<BloodBankDashboard />} />
-          <Route path="/hospital-dashboard" element={<HospitalDashboard />} />
-          <Route path="/admin-overview" element={<HospitalDashboard />} />
+          <Route path="/patient-dashboard" element={<ProtectedRoute allowedRoles={['patient']}><PatientDashboard /></ProtectedRoute>} />
+          <Route path="/doctor-console" element={<ProtectedRoute allowedRoles={['doctor']}><DoctorDashboard /></ProtectedRoute>} />
+          <Route path="/doctor-dashboard" element={<ProtectedRoute allowedRoles={['doctor']}><DoctorDashboard /></ProtectedRoute>} />
+          <Route path="/blood-bank-officer" element={<ProtectedRoute allowedRoles={['blood_bank_officer']}><BloodBankDashboard /></ProtectedRoute>} />
+          <Route path="/blood-officer-dashboard" element={<ProtectedRoute allowedRoles={['blood_bank_officer']}><BloodBankDashboard /></ProtectedRoute>} />
+          <Route path="/hospital-dashboard" element={<ProtectedRoute allowedRoles={['admin', 'hospital_admin', 'receptionist', 'hospital']}><HospitalDashboard /></ProtectedRoute>} />
+          <Route path="/admin-overview" element={<ProtectedRoute allowedRoles={['admin', 'hospital_admin', 'receptionist', 'hospital']}><HospitalDashboard /></ProtectedRoute>} />
 
           {/* LifeShare & Emergency */}
           <Route path="/lifeshare" element={<LifeSharePortal />} />
@@ -70,7 +71,7 @@ export default function App() {
           <Route path="/legal-policy" element={<LegalPolicyLifeShare />} />
           <Route path="/waiting-room-display" element={<WaitingRoomDisplayPage />} />
           <Route path="/my-profile" element={<UserProfilePage />} />
-          <Route path="/emergency-desk" element={<DoctorEmergencyViewPage />} />
+          <Route path="/emergency-desk" element={<ProtectedRoute allowedRoles={['doctor']}><DoctorEmergencyViewPage /></ProtectedRoute>} />
           <Route path="/ai-assistant" element={<FullAssistantPage />} />
 
           <Route path="*" element={<Navigate to="/" replace />} />

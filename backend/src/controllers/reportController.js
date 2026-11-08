@@ -6,6 +6,7 @@ const MedicalReport = require('../models/MedicalReport');
 const HealthRecord = require('../models/HealthRecord');
 const EmergencyCase = require('../models/EmergencyCase');
 const { logAudit } = require('../middleware/auditMiddleware');
+const { summarizeMedicalReport } = require('../services/documentIntelligenceService');
 
 // Ensure reports directory exists
 const uploadDir = path.join(__dirname, '../../uploads/reports');
@@ -114,6 +115,33 @@ exports.uploadReport = async (req, res, next) => {
       fileSizeBytes: req.file.size
     });
 
+    // Auto-generate Clinical AI Summary using Document Intelligence Pipeline
+    let generatedAiSummary = notes ? `Self-uploaded report (${issuingFacility}): ${notes}` : `Uploaded ${reportType.replace('_', ' ')} from ${issuingFacility}`;
+    try {
+      if (req.file && fs.existsSync(req.file.path)) {
+        const fileBuffer = fs.readFileSync(req.file.path);
+        const summaryRes = await summarizeMedicalReport({
+          buffer: fileBuffer,
+          mimeType: req.file.mimetype,
+          filename: req.file.originalname,
+          reportType,
+          title: title.trim(),
+          notes: notes ? notes.trim() : ''
+        });
+        if (summaryRes?.summaryText) {
+          generatedAiSummary = summaryRes.summaryText;
+          medicalReport.aiSummaryCache = {
+            overallSummary: summaryRes.structured?.overallSummary || '',
+            keyFindings: summaryRes.structured?.keyFindings || [],
+            abnormalFlags: summaryRes.structured?.abnormalFlags || [],
+            analyzedAt: new Date()
+          };
+        }
+      }
+    } catch (aiErr) {
+      console.warn('[ReportUpload] Clinical AI summarization deferred or failed:', aiErr.message);
+    }
+
     // Auto-sync into HealthTimeline (HealthRecord collection)
     const healthRecord = new HealthRecord({
       patientId: req.user._id,
@@ -123,7 +151,7 @@ exports.uploadReport = async (req, res, next) => {
       fileUrl: relativeUrl,
       fileSize: req.file.size,
       fileType: req.file.mimetype,
-      aiSummary: notes ? `Self-uploaded report (${issuingFacility}): ${notes}` : `Uploaded ${reportType.replace('_', ' ')} from ${issuingFacility}`,
+      aiSummary: generatedAiSummary,
       metadata: {
         diagnosis: isEmerg ? 'Emergency Important Document' : '',
         labValues: new Map([
@@ -152,7 +180,8 @@ exports.uploadReport = async (req, res, next) => {
         reportType,
         isEmergencyImportant: isEmerg,
         visibility: resolvedVisibility,
-        fileSizeBytes: req.file.size
+        fileSizeBytes: req.file.size,
+        hasAiSummary: Boolean(medicalReport.aiSummaryCache?.analyzedAt)
       },
       req
     });
@@ -160,7 +189,8 @@ exports.uploadReport = async (req, res, next) => {
     res.status(201).json({
       success: true,
       message: 'Medical report uploaded and synced to Health Timeline successfully.',
-      report: medicalReport
+      report: medicalReport,
+      aiSummary: generatedAiSummary
     });
   } catch (error) {
     if (req.file && fs.existsSync(req.file.path)) {
@@ -519,6 +549,99 @@ IMPORTANT:
       disclaimer: 'AI-generated summary for clinical review. Verify findings against source reports before clinical intervention.',
       reportsCount: sharedReports.length,
       generatedAt: new Date().toISOString()
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @route   POST /api/reports/:id/summarize
+// @desc    Generate or regenerate AI clinical summary for a specific report
+exports.summarizePatientReport = async (req, res, next) => {
+  try {
+    const reportId = req.params.id;
+    let report = await MedicalReport.findById(reportId);
+    let healthRec = null;
+
+    if (!report) {
+      healthRec = await HealthRecord.findById(reportId);
+      if (healthRec) {
+        report = await MedicalReport.findOne({ healthRecordId: healthRec._id }) ||
+                 await MedicalReport.findOne({ fileUrl: healthRec.fileUrl });
+      }
+    }
+
+    if (!report && !healthRec) {
+      return res.status(404).json({ error: 'Report or health record not found.' });
+    }
+
+    const patientId = report ? report.patientId : healthRec.patientId;
+    const isOwner = patientId.toString() === req.user._id.toString();
+    const isStaff = ['doctor', 'admin', 'hospital_admin', 'super_admin'].includes(req.user.role);
+    if (!isOwner && !isStaff) {
+      return res.status(403).json({ error: 'Access denied to this medical report.' });
+    }
+
+    // Resolve physical file path
+    const fileUrl = report?.fileUrl || healthRec?.fileUrl;
+    if (!fileUrl) {
+      return res.status(400).json({ error: 'This record does not have an attached report file to summarize.' });
+    }
+
+    const filePath = path.join(__dirname, '../../uploads/reports', path.basename(fileUrl));
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'Original report file was not found on server.' });
+    }
+
+    const fileBuffer = fs.readFileSync(filePath);
+    const summaryRes = await summarizeMedicalReport({
+      buffer: fileBuffer,
+      mimeType: report?.fileMimeType || healthRec?.fileType,
+      filename: report?.fileName || path.basename(filePath),
+      reportType: report?.reportType || healthRec?.type,
+      title: report?.title || healthRec?.title,
+      notes: report?.notes || ''
+    });
+
+    if (report) {
+      report.aiSummaryCache = {
+        overallSummary: summaryRes.structured?.overallSummary || '',
+        keyFindings: summaryRes.structured?.keyFindings || [],
+        abnormalFlags: summaryRes.structured?.abnormalFlags || [],
+        analyzedAt: new Date()
+      };
+      await report.save();
+    }
+
+    // Also update associated HealthRecord
+    const targetHealthRecordId = report?.healthRecordId || healthRec?._id;
+    if (targetHealthRecordId) {
+      await HealthRecord.findByIdAndUpdate(targetHealthRecordId, {
+        aiSummary: summaryRes.summaryText
+      });
+    }
+
+    await logAudit({
+      userId: req.user._id,
+      userName: req.user.name,
+      userRole: req.user.role,
+      action: 'SUMMARIZE_REPORT',
+      resourceType: 'MedicalReport',
+      resourceId: report?._id || healthRec?._id,
+      patientId,
+      details: {
+        title: report?.title || healthRec?.title,
+        modelUsed: summaryRes.modelUsed
+      },
+      req
+    });
+
+    res.json({
+      success: true,
+      summary: summaryRes.structured,
+      summaryText: summaryRes.summaryText,
+      modelUsed: summaryRes.modelUsed,
+      analyzedAt: new Date().toISOString()
     });
   } catch (error) {
     next(error);

@@ -10,6 +10,7 @@ const AiProcessingAck = require('../models/AiProcessingAck');
 const MedicalReport = require('../models/MedicalReport');
 const HealthRecord = require('../models/HealthRecord');
 const { logAudit } = require('../middleware/auditMiddleware');
+const { scanMedicinePackaging } = require('../services/documentIntelligenceService');
 
 // Storage directory for medicine photos (reuses uploads/reports)
 const uploadDir = path.join(__dirname, '../../uploads/reports');
@@ -281,108 +282,36 @@ exports.scanMedicine = async (req, res, next) => {
 
     const imageUrls = files.map(f => `/uploads/reports/${f.filename}`);
 
-    const promptText = `You are a clinical pharmacovigilance OCR and medicine label reader.
-Examine the provided medicine image(s) (which may be a blister strip, bottle, box, or prescription slip).
-Extract ONLY what is clearly printed and visible on the packaging.
+    // Call Hybrid Document Intelligence Pipeline (Tesseract OCR + Sharp Preprocessing + Gemini Multimodal)
+    const primaryFile = files[0];
+    const fileBuffer = fs.readFileSync(primaryFile.path);
 
-STRICT CLINICAL RULES:
-1. Extract brand name, generic/salt name, strength, dosage form, manufacturer, batch number, and expiry date.
-2. If any field is not clearly visible, return null or empty string. NEVER GUESS OR INVENT DATA.
-3. NEVER provide medical advice, diagnosis, or dose recommendations.
-4. If multiple medicines are present in the image(s), detect and return each one as a separate item in the array.
-5. Provide a confidence score for each field ('high', 'medium', 'low') and an overall confidence score (0.0 to 1.0).
-6. Return strictly valid JSON with NO markdown formatting, matching this exact structure:
-{
-  "items": [
-    {
-      "brandName": "Augmentin",
-      "genericName": "Amoxicillin and Potassium Clavulanate",
-      "strength": "625 mg",
-      "dosageForm": "tablet",
-      "manufacturer": "GlaxoSmithKline",
-      "batchNumber": "AB1234",
-      "expiryDate": "12/2027",
-      "confidence": {
-        "overall": 0.95,
-        "fields": {
-          "brandName": "high",
-          "genericName": "high",
-          "strength": "high",
-          "dosageForm": "high"
-        }
-      }
-    }
-  ]
-}`;
-
-    let parsedResult = null;
-
-    // Call Gemini multimodal if API key is configured
-    if (process.env.GEMINI_API_KEY) {
-      const contentsParts = [{ text: promptText }];
-      for (const f of files) {
-        const fileBytes = fs.readFileSync(f.path).toString('base64');
-        contentsParts.push({
-          inline_data: {
-            mime_type: f.mimetype,
-            data: fileBytes
-          }
-        });
-      }
-
-      // Model attempts
-      const scanModels = ['gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-flash-latest'];
-      for (const m of scanModels) {
-        if (parsedResult) break;
-        try {
-          const geminiRes = await axios.post(
-            `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${process.env.GEMINI_API_KEY}`,
-            { contents: [{ parts: contentsParts }] },
-            { headers: { 'Content-Type': 'application/json' }, timeout: 14000 }
-          );
-
-          let rawText = geminiRes.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-          rawText = rawText.replace(/```json/gi, '').replace(/```/gi, '').trim();
-
-          const jsonCandidate = JSON.parse(rawText);
-          const validated = GeminiResponseSchema.parse(jsonCandidate);
-          parsedResult = validated;
-        } catch (attemptErr) {
-          console.warn(`[Gemini Medicine Scan (${m}) failed]:`, attemptErr.message);
-        }
-      }
+    let scanResult;
+    try {
+      scanResult = await scanMedicinePackaging({
+        buffer: fileBuffer,
+        mimeType: primaryFile.mimetype,
+        filename: primaryFile.originalname
+      });
+    } catch (scanErr) {
+      console.error('[MedicineScan] Intelligence pipeline error:', scanErr.message);
+      return res.status(422).json({
+        error: scanErr.message || 'Unable to detect medicine details. Please ensure the label is in focus and well-lit, then try again.'
+      });
     }
 
-    // Deterministic Fallback Parser if Gemini fails or is unconfigured
-    if (!parsedResult) {
-      console.log('[MedicineScan] Using fallback parser template for user verification.');
-      parsedResult = {
-        items: [{
-          brandName: 'Detected Medicine',
-          genericName: 'Salt compound (Review required)',
-          strength: '500 mg',
-          dosageForm: 'tablet',
-          manufacturer: 'Packaging Review Required',
-          batchNumber: '',
-          expiryDate: '',
-          confidence: {
-            overall: 0.60,
-            fields: {
-              brandName: 'low',
-              genericName: 'low',
-              strength: 'medium',
-              dosageForm: 'high'
-            }
-          }
-        }]
-      };
+    const extractedItems = scanResult.extractedItems;
+    if (!extractedItems || extractedItems.length === 0) {
+      return res.status(422).json({
+        error: 'No medicine names or details could be identified on the packaging. Please retake photo with clear lighting and focus on the text label.'
+      });
     }
 
     // Save MedicineScan record in 'pending_review' state
     const scanDoc = await MedicineScan.create({
       patientId,
       imageUrls,
-      extractedItems: parsedResult.items,
+      extractedItems,
       status: 'pending_review',
       ipAddress: req.ip || ''
     });
@@ -395,7 +324,11 @@ STRICT CLINICAL RULES:
       resourceType: 'MedicineScan',
       resourceId: scanDoc._id,
       patientId,
-      details: { itemsExtractedCount: parsedResult.items.length },
+      details: {
+        itemsExtractedCount: extractedItems.length,
+        modelUsed: scanResult.modelUsed,
+        ocrSummary: scanResult.ocrSummary
+      },
       req
     });
 
@@ -403,7 +336,8 @@ STRICT CLINICAL RULES:
       success: true,
       scanId: scanDoc._id,
       imageUrls,
-      extractedItems: parsedResult.items
+      extractedItems,
+      ocrSummary: scanResult.ocrSummary
     });
   } catch (error) {
     files.forEach(f => { try { fs.unlinkSync(f.path); } catch (e) {} });

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../contexts/SocketContext';
 import api, { getMediaUrl } from '../../services/api';
@@ -75,18 +76,42 @@ export default function DoctorDashboard() {
   const [docSummaryLoadingId, setDocSummaryLoadingId] = useState(null);
   const [batchSummaryLoading, setBatchSummaryLoading] = useState(false);
 
-  // Fetch doctor record
+  // Fetch doctor record strictly for the logged-in physician
   useEffect(() => {
-    api.get('/doctors')
+    if (!user) return;
+    if (user.role !== 'doctor') {
+      setLoading(false);
+      return;
+    }
+
+    api.get('/doctors/profile/me')
       .then(res => {
-        const doc = res.data.doctors?.find(d => d.userId?._id === user?.id || d.userId?.email === user?.email) || res.data.doctors?.[0];
+        const doc = res.data.doctor;
         if (doc) {
           setDoctorId(doc._id);
           fetchLiveQueue(doc._id);
           joinDoctorQueue(doc._id);
         }
       })
-      .catch(err => console.error(err))
+      .catch(() => {
+        // Fallback by matching authenticated user email or ID in /doctors without ever blindly picking index 0
+        api.get('/doctors')
+          .then(fallbackRes => {
+            const matched = fallbackRes.data.doctors?.find(d =>
+              (d.userId?._id && (d.userId._id === user.id || d.userId._id === user._id)) ||
+              (d.userId?.email && d.userId.email.toLowerCase() === user.email?.toLowerCase())
+            );
+            if (matched) {
+              setDoctorId(matched._id);
+              fetchLiveQueue(matched._id);
+              joinDoctorQueue(matched._id);
+            } else {
+              console.warn('[DoctorDashboard] No matching doctor record for user:', user.email);
+            }
+          })
+          .catch(console.error)
+          .finally(() => setLoading(false));
+      })
       .finally(() => setLoading(false));
   }, [user]);
 
@@ -384,8 +409,26 @@ export default function DoctorDashboard() {
     }
   };
 
+  if (user && user.role !== 'doctor') {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   if (loading) {
     return <div className="p-8 text-center text-xs text-slate-400">Loading Doctor Consultation Engine...</div>;
+  }
+
+  if (!doctorId && !loading) {
+    return (
+      <div className="max-w-xl mx-auto my-16 p-8 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 text-center space-y-4 shadow-sm">
+        <div className="w-16 h-16 rounded-full bg-amber-50 dark:bg-amber-950/50 text-amber-600 flex items-center justify-center mx-auto">
+          <Stethoscope className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl font-bold text-slate-900 dark:text-white">Physician Profile Not Linked</h2>
+        <p className="text-xs text-slate-500 leading-relaxed">
+          Your account (<strong>{user?.email}</strong>) does not have an active physician OPD assignment in the system. Please verify you are logged in with your assigned doctor credentials.
+        </p>
+      </div>
+    );
   }
 
   const currentPatient = queueData?.currentPatient;

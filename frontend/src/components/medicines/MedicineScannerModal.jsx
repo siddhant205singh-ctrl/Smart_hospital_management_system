@@ -73,44 +73,60 @@ export default function MedicineScannerModal({ isOpen, onClose, onMedicinesSaved
     }
   };
 
-  // Client-Side Image Compression & Rotation via Canvas API
+  // Client-Side Image Compression & Rotation via Canvas API with HEIC/fallback guard
   const compressImage = (file) => {
     return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = (event) => {
-        const img = new Image();
-        img.src = event.target.result;
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          let width = img.width;
-          let height = img.height;
-          const maxDim = 1600;
+      // If HEIC or non-standard format, send original file for server-side Sharp handling
+      if (file.name.toLowerCase().endsWith('.heic') || file.type.includes('heic')) {
+        return resolve(file);
+      }
 
-          if (width > maxDim || height > maxDim) {
-            if (width > height) {
-              height = Math.round((height * maxDim) / width);
-              width = maxDim;
-            } else {
-              width = Math.round((width * maxDim) / height);
-              height = maxDim;
+      try {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onerror = () => resolve(file);
+        reader.onload = (event) => {
+          const img = new Image();
+          img.onerror = () => resolve(file);
+          img.src = event.target.result;
+          img.onload = () => {
+            try {
+              const canvas = document.createElement('canvas');
+              let width = img.width;
+              let height = img.height;
+              const maxDim = 1600;
+
+              if (width > maxDim || height > maxDim) {
+                if (width > height) {
+                  height = Math.round((height * maxDim) / width);
+                  width = maxDim;
+                } else {
+                  width = Math.round((width * maxDim) / height);
+                  height = maxDim;
+                }
+              }
+
+              canvas.width = width;
+              canvas.height = height;
+              const ctx = canvas.getContext('2d');
+              ctx.drawImage(img, 0, 0, width, height);
+
+              canvas.toBlob((blob) => {
+                if (!blob) return resolve(file);
+                const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, '.jpg'), {
+                  type: 'image/jpeg',
+                  lastModified: Date.now()
+                });
+                resolve(compressedFile);
+              }, 'image/jpeg', 0.85);
+            } catch (canvasErr) {
+              resolve(file);
             }
-          }
-
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, width, height);
-
-          canvas.toBlob((blob) => {
-            const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, '.jpg'), {
-              type: 'image/jpeg',
-              lastModified: Date.now()
-            });
-            resolve(compressedFile);
-          }, 'image/jpeg', 0.82);
+          };
         };
-      };
+      } catch (e) {
+        resolve(file);
+      }
     });
   };
 
@@ -164,9 +180,7 @@ export default function MedicineScannerModal({ isOpen, onClose, onMedicinesSaved
     }, 600);
 
     try {
-      const res = await api.post('/medicines/scan', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      const res = await api.post('/medicines/scan', formData);
 
       clearInterval(progressTimer);
       setScanProgress(100);

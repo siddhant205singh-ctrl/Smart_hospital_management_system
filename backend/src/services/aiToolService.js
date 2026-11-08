@@ -13,6 +13,7 @@ const QRCode = require('qrcode');
 const { getDoctorRollingAverage } = require('../services/waitEngine');
 const { sendNotification } = require('../services/notificationService');
 const { logAudit } = require('../middleware/auditMiddleware');
+const { scanMedicinePackaging, summarizeMedicalReport } = require('./documentIntelligenceService');
 
 // Haversine distance formula in kilometers
 function getHaversineDistance(lat1, lon1, lat2, lon2) {
@@ -279,6 +280,30 @@ const toolDefinitions = [
       required: ['query']
     },
     roles: ['patient', 'visitor']
+  },
+  {
+    name: 'scan_medicine',
+    description: 'Detects and extracts medicine brand name, active salt/generic compound, dosage strength, form, manufacturer, and packaging details from an attached photo or blister strip image.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        notes: { type: 'STRING', description: 'Any additional notes or questions about the medicine' }
+      },
+      required: []
+    },
+    roles: ['patient', 'visitor', 'doctor']
+  },
+  {
+    name: 'summarize_report',
+    description: 'Analyzes and generates a plain-language clinical summary from an attached medical report, lab test, ECG, or prescription PDF/image.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        reportType: { type: 'STRING', description: 'Category of the report (e.g. lab_report, blood_test, ecg, prescription, discharge_summary)' }
+      },
+      required: []
+    },
+    roles: ['patient', 'visitor', 'doctor']
   }
 ];
 
@@ -927,6 +952,53 @@ async function executeTool(name, args = {}, sessionContext = {}) {
       return { answer: 'All blood units at SmartCare LifeShare are voluntary and unpaid under NBTC guidelines. Donors aged 18-65 weighing at least 45kg are welcome.' };
     }
     return { answer: 'SmartCare Hospital provides 24x7 patient care, online OPD queue tracking with traffic-aware arrival alerts, and integrated electronic medical records.' };
+  }
+
+  // 19. scan_medicine
+  if (name === 'scan_medicine') {
+    if (!sessionContext.attachment?.buffer) {
+      return {
+        error: 'No image attachment was provided. Please attach a photo of the medicine strip, bottle, or packaging.'
+      };
+    }
+    try {
+      const scanRes = await scanMedicinePackaging({
+        buffer: sessionContext.attachment.buffer,
+        mimeType: sessionContext.attachment.mimeType,
+        filename: sessionContext.attachment.fileName
+      });
+      return {
+        success: true,
+        detectedMedicines: scanRes.extractedItems,
+        ocrSummary: scanRes.ocrSummary
+      };
+    } catch (err) {
+      return { error: err.message || 'Failed to detect medicine packaging details.' };
+    }
+  }
+
+  // 20. summarize_report
+  if (name === 'summarize_report') {
+    if (!sessionContext.attachment?.buffer) {
+      return {
+        error: 'No report attachment was provided. Please attach a PDF or image of the medical report.'
+      };
+    }
+    try {
+      const summaryRes = await summarizeMedicalReport({
+        buffer: sessionContext.attachment.buffer,
+        mimeType: sessionContext.attachment.mimeType,
+        filename: sessionContext.attachment.fileName,
+        reportType: args.reportType || 'lab_report'
+      });
+      return {
+        success: true,
+        summary: summaryRes.structured,
+        summaryText: summaryRes.summaryText
+      };
+    } catch (err) {
+      return { error: err.message || 'Failed to summarize report.' };
+    }
   }
 
   return { error: `Tool ${name} not recognized` };

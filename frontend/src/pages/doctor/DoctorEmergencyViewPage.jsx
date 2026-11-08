@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../contexts/SocketContext';
 import api, { getMediaUrl } from '../../services/api';
@@ -48,6 +49,10 @@ export default function DoctorEmergencyViewPage() {
   const [newStatus, setNewStatus] = useState('under_treatment');
   const [updating, setUpdating] = useState(false);
   const [audioNotification, setAudioNotification] = useState(false);
+
+  if (user && user.role !== 'doctor') {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   // Key Reports & AI Summary state
   const [emergencyReports, setEmergencyReports] = useState([]);

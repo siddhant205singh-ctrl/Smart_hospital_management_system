@@ -6,12 +6,14 @@ const {
   getFullDoctorProfile,
   getAvailableSlots,
   updateLiveStatus,
-  verifyDoctor
+  verifyDoctor,
+  getMyDoctorProfile
 } = require('../controllers/doctorController');
 const { protect } = require('../middleware/authMiddleware');
 const { authorize } = require('../middleware/roleMiddleware');
 
 router.get('/', getDoctors);
+router.get('/profile/me', protect, authorize('doctor'), getMyDoctorProfile);
 router.get('/:id', getDoctorById);
 router.get('/:id/full-profile', getFullDoctorProfile);
 router.get('/:id/slots', getAvailableSlots);

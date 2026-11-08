@@ -4,10 +4,57 @@ const Appointment = require('../models/Appointment');
 const Doctor = require('../models/Doctor');
 const User = require('../models/User');
 const QRCode = require('qrcode');
+const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
 const { runAgentTurn } = require('../services/aiAgentEngine');
 const { executeTool } = require('../services/aiToolService');
 const { sendNotification } = require('../services/notificationService');
 const { logAudit } = require('../middleware/auditMiddleware');
+
+// Chat Attachment Upload Multer Configuration
+const chatUploadDir = path.join(__dirname, '../../uploads/reports');
+if (!fs.existsSync(chatUploadDir)) {
+  fs.mkdirSync(chatUploadDir, { recursive: true });
+}
+
+const chatStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, chatUploadDir),
+  filename: (req, file, cb) => {
+    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+    const sanitized = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
+    cb(null, `chat-${uniqueSuffix}-${sanitized}`);
+  }
+});
+
+const chatUpload = multer({
+  storage: chatStorage,
+  limits: { fileSize: 10 * 1024 * 1024 }
+});
+
+exports.chatUploadMiddleware = chatUpload.single('file');
+
+// @route   POST /api/ai/upload-attachment
+// @desc    Upload an attachment (image or PDF) for the AI chatbot
+exports.uploadChatAttachment = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file provided.' });
+    }
+    const relativeUrl = `/uploads/reports/${req.file.filename}`;
+    res.json({
+      success: true,
+      attachment: {
+        fileUrl: relativeUrl,
+        fileName: req.file.originalname,
+        mimeType: req.file.mimetype,
+        size: req.file.size
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+};
 
 /**
  * Helper: Find or create an active chat session
@@ -34,18 +81,32 @@ async function resolveSession(sessionId, user, visitorId) {
 // @desc    Standard JSON turn with agent loop, multi-turn history & tool execution
 exports.chatWithAssistant = async (req, res, next) => {
   try {
-    const { message, sessionId, visitorId, currentSymptoms, language = 'en' } = req.body;
+    const { message, sessionId, visitorId, currentSymptoms, language = 'en', attachment } = req.body;
     const user = req.user || null;
     const role = user?.role || 'visitor';
 
-    if (!message && (!currentSymptoms || currentSymptoms.length === 0)) {
-      return res.status(400).json({ error: 'Please enter a message or select symptoms' });
+    if (!message && (!currentSymptoms || currentSymptoms.length === 0) && !attachment) {
+      return res.status(400).json({ error: 'Please enter a message, select symptoms, or attach a document' });
     }
 
     const combinedInput = `${message || ''} ${Array.isArray(currentSymptoms) ? currentSymptoms.join(', ') : (currentSymptoms || '')}`.trim();
 
     // 1. Resolve Session
     const session = await resolveSession(sessionId, user, visitorId);
+
+    // Resolve physical attachment if supplied
+    let resolvedAttachment = null;
+    if (attachment && attachment.fileUrl) {
+      const diskPath = path.join(__dirname, '../../uploads/reports', path.basename(attachment.fileUrl));
+      if (fs.existsSync(diskPath)) {
+        resolvedAttachment = {
+          fileUrl: attachment.fileUrl,
+          fileName: attachment.fileName || path.basename(diskPath),
+          mimeType: attachment.mimeType || 'image/jpeg',
+          buffer: fs.readFileSync(diskPath)
+        };
+      }
+    }
 
     // 2. Fetch past conversation turns for this session
     const pastMessages = await ChatMessage.find({ sessionId: session._id })
@@ -57,12 +118,18 @@ exports.chatWithAssistant = async (req, res, next) => {
       sessionId: session._id,
       userId: user?._id || null,
       sender: 'user',
-      text: combinedInput
+      text: combinedInput || (attachment ? `[Attached File: ${attachment.fileName || 'Document'}]` : ''),
+      attachment: attachment ? {
+        fileUrl: attachment.fileUrl,
+        fileName: attachment.fileName,
+        mimeType: attachment.mimeType
+      } : undefined
     });
 
     // 4. Update session title if first turn
-    if (session.title === 'New Health Consultation' && combinedInput.length > 3) {
-      session.title = combinedInput.substring(0, 35) + (combinedInput.length > 35 ? '...' : '');
+    if (session.title === 'New Health Consultation') {
+      const titleCandidate = combinedInput || `Attachment: ${attachment?.fileName || 'Health Document'}`;
+      session.title = titleCandidate.substring(0, 35) + (titleCandidate.length > 35 ? '...' : '');
       await session.save();
     }
 
@@ -70,11 +137,13 @@ exports.chatWithAssistant = async (req, res, next) => {
     const sessionContext = {
       user,
       role,
-      ipAddress: req.ip || req.headers['x-forwarded-for'] || '127.0.0.1'
+      ipAddress: req.ip || req.headers['x-forwarded-for'] || '127.0.0.1',
+      attachment: resolvedAttachment
     };
 
     const agentResult = await runAgentTurn({
       message: combinedInput,
+      attachment: resolvedAttachment,
       history: pastMessages,
       user,
       role,
@@ -113,12 +182,12 @@ exports.chatWithAssistant = async (req, res, next) => {
 // @desc    Server-Sent Events (SSE) streaming assistant turn with live token stream
 exports.chatWithAssistantStream = async (req, res, next) => {
   try {
-    const { message, sessionId, visitorId, currentSymptoms, language = 'en' } = req.body;
+    const { message, sessionId, visitorId, currentSymptoms, language = 'en', attachment } = req.body;
     const user = req.user || null;
     const role = user?.role || 'visitor';
 
-    if (!message && (!currentSymptoms || currentSymptoms.length === 0)) {
-      return res.status(400).json({ error: 'Please enter a message or select symptoms' });
+    if (!message && (!currentSymptoms || currentSymptoms.length === 0) && !attachment) {
+      return res.status(400).json({ error: 'Please enter a message, select symptoms, or attach a document' });
     }
 
     const combinedInput = `${message || ''} ${Array.isArray(currentSymptoms) ? currentSymptoms.join(', ') : (currentSymptoms || '')}`.trim();
@@ -137,6 +206,20 @@ exports.chatWithAssistantStream = async (req, res, next) => {
     const session = await resolveSession(sessionId, user, visitorId);
     sendEvent('session', { sessionId: session._id });
 
+    // Resolve physical attachment if supplied
+    let resolvedAttachment = null;
+    if (attachment && attachment.fileUrl) {
+      const diskPath = path.join(__dirname, '../../uploads/reports', path.basename(attachment.fileUrl));
+      if (fs.existsSync(diskPath)) {
+        resolvedAttachment = {
+          fileUrl: attachment.fileUrl,
+          fileName: attachment.fileName || path.basename(diskPath),
+          mimeType: attachment.mimeType || 'image/jpeg',
+          buffer: fs.readFileSync(diskPath)
+        };
+      }
+    }
+
     // 2. Fetch past conversation turns
     const pastMessages = await ChatMessage.find({ sessionId: session._id })
       .sort({ createdAt: 1 })
@@ -147,11 +230,17 @@ exports.chatWithAssistantStream = async (req, res, next) => {
       sessionId: session._id,
       userId: user?._id || null,
       sender: 'user',
-      text: combinedInput
+      text: combinedInput || (attachment ? `[Attached File: ${attachment.fileName || 'Document'}]` : ''),
+      attachment: attachment ? {
+        fileUrl: attachment.fileUrl,
+        fileName: attachment.fileName,
+        mimeType: attachment.mimeType
+      } : undefined
     });
 
-    if (session.title === 'New Health Consultation' && combinedInput.length > 3) {
-      session.title = combinedInput.substring(0, 35) + (combinedInput.length > 35 ? '...' : '');
+    if (session.title === 'New Health Consultation') {
+      const titleCandidate = combinedInput || `Attachment: ${attachment?.fileName || 'Health Document'}`;
+      session.title = titleCandidate.substring(0, 35) + (titleCandidate.length > 35 ? '...' : '');
       await session.save();
     }
 
@@ -159,13 +248,15 @@ exports.chatWithAssistantStream = async (req, res, next) => {
     const sessionContext = {
       user,
       role,
-      ipAddress: req.ip || req.headers['x-forwarded-for'] || '127.0.0.1'
+      ipAddress: req.ip || req.headers['x-forwarded-for'] || '127.0.0.1',
+      attachment: resolvedAttachment
     };
 
     sendEvent('status', { message: 'Analyzing healthcare query...' });
 
     const agentResult = await runAgentTurn({
       message: combinedInput,
+      attachment: resolvedAttachment,
       history: pastMessages,
       user,
       role,

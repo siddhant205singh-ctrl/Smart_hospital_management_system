@@ -6,6 +6,11 @@ const chatMessageSchema = new mongoose.Schema({
   sender: { type: String, enum: ['user', 'assistant', 'system'], required: true },
   text: { type: String, required: true },
   isEmergency: { type: Boolean, default: false },
+  attachment: {
+    fileUrl: { type: String, default: '' },
+    fileName: { type: String, default: '' },
+    mimeType: { type: String, default: '' }
+  },
   toolCalls: [{
     toolName: String,
     args: mongoose.Schema.Types.Mixed,

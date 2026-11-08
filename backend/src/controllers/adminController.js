@@ -6,6 +6,7 @@ const User = require('../models/User');
 const QRCode = require('qrcode');
 const { recalculateDoctorQueue } = require('../services/waitEngine');
 const { logAudit } = require('../middleware/auditMiddleware');
+const { checkAiHealth } = require('../services/aiService');
 
 // @route   GET /api/admin/overview
 // Live hospital overview: patient flow, overcrowding per department, doctor load
@@ -175,6 +176,27 @@ exports.createWalkInToken = async (req, res, next) => {
     });
 
     res.status(201).json({ success: true, appointment });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @route   GET /api/admin/ai-health
+// @desc    Admin-only AI health check endpoint for Gemini API, models, and pipeline latency
+exports.getAiHealth = async (req, res, next) => {
+  try {
+    const health = await checkAiHealth();
+    res.json({
+      success: true,
+      health,
+      features: {
+        medicineScanner: 'active',
+        reportSummarizer: 'active',
+        multimodalChatbot: 'active',
+        ocrEngine: 'Tesseract.js (Active)',
+        imageOptimizer: 'Sharp (Active)'
+      }
+    });
   } catch (error) {
     next(error);
   }

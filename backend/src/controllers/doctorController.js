@@ -217,3 +217,24 @@ exports.verifyDoctor = async (req, res, next) => {
     next(error);
   }
 };
+
+// @route   GET /api/doctors/profile/me (Doctor Only)
+exports.getMyDoctorProfile = async (req, res, next) => {
+  try {
+    const doctor = await Doctor.findOne({ userId: req.user._id })
+      .populate('userId', 'name email phone avatar role')
+      .populate('hospitalId', 'name city address emergencyContact')
+      .populate('departmentId', 'name code floor');
+
+    if (!doctor) {
+      return res.status(404).json({ error: 'Doctor profile record not found for this user account.' });
+    }
+
+    res.json({
+      success: true,
+      doctor
+    });
+  } catch (error) {
+    next(error);
+  }
+};
