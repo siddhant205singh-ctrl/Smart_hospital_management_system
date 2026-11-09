@@ -180,7 +180,11 @@ export default function MedicineScannerModal({ isOpen, onClose, onMedicinesSaved
     }, 600);
 
     try {
-      const res = await api.post('/medicines/scan', formData);
+      const res = await api.post('/medicines/scan', formData, {
+        headers: {
+          'Content-Type': undefined
+        }
+      });
 
       clearInterval(progressTimer);
       setScanProgress(100);

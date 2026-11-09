@@ -29,8 +29,13 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-  const allowed = ['image/jpeg', 'image/png', 'image/webp'];
-  if (allowed.includes(file.mimetype)) {
+  const allowedMimes = [
+    'image/jpeg', 'image/jpg', 'image/png', 'image/webp',
+    'image/heic', 'image/heif', 'image/pjpeg', 'image/x-png', 'application/octet-stream'
+  ];
+  const ext = path.extname(file.originalname).toLowerCase();
+  const allowedExts = ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif'];
+  if (allowedMimes.includes(file.mimetype) || allowedExts.includes(ext)) {
     cb(null, true);
   } else {
     cb(new Error('Invalid image type. Only JPG, PNG, and WEBP formats are accepted.'), false);
@@ -40,10 +45,16 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 10 * 1024 * 1024, files: 5 } // 10MB per file, max 5 images
+  limits: { fileSize: 15 * 1024 * 1024, files: 5 } // 15MB per file, max 5 images
 });
 
-exports.scanUploadMiddleware = upload.array('photos', 5);
+// Accept photos under 'photos', 'photo', 'files', or 'file' field names
+exports.scanUploadMiddleware = upload.fields([
+  { name: 'photos', maxCount: 5 },
+  { name: 'photo', maxCount: 1 },
+  { name: 'files', maxCount: 5 },
+  { name: 'file', maxCount: 1 }
+]);
 
 // Zod Validation Schema for Gemini Extraction
 const MedicineItemSchema = z.object({
@@ -261,7 +272,15 @@ exports.createManualMedicine = async (req, res, next) => {
 // @route   POST /api/medicines/scan
 // @desc    Process photo of strip/bottle/box/slip with Gemini multimodal & Zod parser
 exports.scanMedicine = async (req, res, next) => {
-  const files = req.files || [];
+  let files = [];
+  if (Array.isArray(req.files)) {
+    files = req.files;
+  } else if (req.files && typeof req.files === 'object') {
+    files = Object.values(req.files).flat();
+  } else if (req.file) {
+    files = [req.file];
+  }
+
   try {
     if (!files || files.length === 0) {
       return res.status(400).json({ error: 'Please upload at least one medicine photo (JPG, PNG, or WEBP).' });

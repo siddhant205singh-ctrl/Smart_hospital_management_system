@@ -12,12 +12,19 @@ const api = axios.create({
   }
 });
 
-// Intercept requests to attach JWT access token
+// Intercept requests to attach JWT access token & handle FormData multipart boundary
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('smartcare_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+    // Automatically unset Content-Type for FormData so browser sets multipart/form-data with boundary
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
+      if (config.headers.common) {
+        delete config.headers.common['Content-Type'];
+      }
     }
     return config;
   },

@@ -417,6 +417,10 @@ export default function DoctorDashboard() {
     return <div className="p-8 text-center text-xs text-slate-400">Loading Doctor Consultation Engine...</div>;
   }
 
+  if (!user || user.role !== 'doctor') {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   if (!doctorId && !loading) {
     return (
       <div className="max-w-xl mx-auto my-16 p-8 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 text-center space-y-4 shadow-sm">
