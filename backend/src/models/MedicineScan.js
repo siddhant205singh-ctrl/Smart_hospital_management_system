@@ -13,12 +13,7 @@ const medicineScanSchema = new mongoose.Schema({
     expiryDate: { type: String, default: '' },
     confidence: {
       overall: { type: Number, default: 0.9 }, // 0.0 - 1.0
-      fields: {
-        brandName: { type: String, enum: ['high', 'medium', 'low'], default: 'high' },
-        genericName: { type: String, enum: ['high', 'medium', 'low'], default: 'medium' },
-        strength: { type: String, enum: ['high', 'medium', 'low'], default: 'high' },
-        dosageForm: { type: String, enum: ['high', 'medium', 'low'], default: 'high' }
-      }
+      fields: { type: mongoose.Schema.Types.Mixed, default: {} }
     }
   }],
   status: { 

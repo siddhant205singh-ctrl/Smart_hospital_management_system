@@ -73,12 +73,7 @@ const MedicineItemSchema = z.object({
   expiryDate: z.string().nullable().optional().transform(v => v || ''),
   confidence: z.object({
     overall: z.number().min(0).max(1).default(0.85),
-    fields: z.object({
-      brandName: z.enum(['high', 'medium', 'low']).default('high'),
-      genericName: z.enum(['high', 'medium', 'low']).default('medium'),
-      strength: z.enum(['high', 'medium', 'low']).default('high'),
-      dosageForm: z.enum(['high', 'medium', 'low']).default('high')
-    }).default({})
+    fields: z.record(z.any()).default({})
   }).default({})
 });
 
