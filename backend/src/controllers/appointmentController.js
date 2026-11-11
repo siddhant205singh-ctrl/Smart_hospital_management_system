@@ -111,6 +111,13 @@ exports.bookAppointment = async (req, res, next) => {
       await appointment.save();
     }
 
+    // Instant real-time broadcast to doctor console & waiting rooms
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`doctor_${doctor._id}`).emit('queue:updated', { doctorId: doctor._id });
+      io.emit('queue:refresh', { doctorId: doctor._id });
+    }
+
     // Return instant HTTP 201 response so screen NEVER freezes
     res.status(201).json({
       success: true,

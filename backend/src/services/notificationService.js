@@ -1,5 +1,5 @@
 const Notification = require('../models/Notification');
-const nodemailer = require('nodemailer');
+const { sendMail } = require('./emailService');
 
 // Mock Twilio Client interface (plug-and-play with real Twilio account credentials)
 class TwilioMockService {
@@ -28,21 +28,6 @@ class TwilioMockService {
 }
 
 const twilioClient = new TwilioMockService(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-
-// Email transporter (fallback test account or console logger)
-let transporter = null;
-try {
-  transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.ethereal.email',
-    port: process.env.SMTP_PORT || 587,
-    auth: {
-      user: process.env.SMTP_USER || 'smartcare.test@ethereal.email',
-      pass: process.env.SMTP_PASS || 'mockpassword'
-    }
-  });
-} catch (e) {
-  console.log('[NotificationService] Using console email transporter fallback');
-}
 
 /**
  * Dispatch unified multi-channel notification
@@ -85,27 +70,22 @@ const sendNotification = async ({
     }
   }
 
-  // 3. Email dispatch via Nodemailer
+  // 3. Email dispatch via unified email service (with short timeouts & safe fallback)
   if ((channel === 'email' || channel === 'all') && userEmail) {
     try {
-      if (transporter && process.env.SMTP_USER) {
-        await transporter.sendMail({
-          from: '"HealthMS Health System" <no-reply@healthms.health>',
-          to: userEmail,
-          subject: title,
-          text: message,
-          html: `<div style="font-family: sans-serif; padding: 20px; color: #1e293b;">
-            <h2 style="color: #0d9488;">HealthMS Alert</h2>
-            <p style="font-size: 16px;">${message}</p>
-            <p style="color: #64748b; font-size: 12px; margin-top: 24px;">This is an automated healthcare notification from HealthMS.</p>
-          </div>`
-        });
-      } else {
-        console.log(`[Email Mock Sent] TO: ${userEmail} | SUBJECT: ${title} | MESSAGE: ${message}`);
-      }
+      await sendMail({
+        to: userEmail,
+        subject: title,
+        text: message,
+        html: `<div style="font-family: sans-serif; padding: 20px; color: #1e293b;">
+          <h2 style="color: #0d9488;">HealthMS Alert</h2>
+          <p style="font-size: 16px;">${message}</p>
+          <p style="color: #64748b; font-size: 12px; margin-top: 24px;">This is an automated healthcare notification from HealthMS.</p>
+        </div>`
+      });
       results.email = true;
     } catch (err) {
-      console.error('[NotificationService] Nodemailer error:', err.message);
+      console.error('[NotificationService] Email error:', err.message);
     }
   }
 

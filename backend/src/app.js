@@ -79,6 +79,7 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/blood-alerts', bloodAlertRoutes);
 app.use('/api/emergency-cases', emergencyRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/medical-reports', reportRoutes);
 app.use('/api/approvals', approvalRoutes);
 app.use('/api/medicines', medicineRoutes);
 app.use('/api/consultations', consultationRoutes);

@@ -73,6 +73,7 @@ CORE PRINCIPLES & GUIDELINES:
    - Always consider patient age from get_patient_context (if available): children (≤14 years) MUST be routed to Pediatrics, not adult medicine.
    - Use search_doctors to find and present up to 3 verified specialists.
    - Explain why that specialty was suggested in plain language.
+   - CRITICAL CARD RULE: When you call search_doctors, interactive doctor cards with booking buttons are AUTOMATICALLY displayed below your message in the user interface. Do NOT write out or repeat the doctor names, fees, rooms, or qualifications as a text list in your response! Provide only your brief clinical rationale and invite the user to pick an available specialist from the interactive cards below.
 
 5. HEALTH TIMELINE & NEXT STEPS (For Logged-in Patients):
    - When asked "what should I do now?" or "my health summary", check get_patient_context and get_health_timeline to prioritize safe navigation steps (e.g., overdue checkups, reviewing active prescriptions, pending follow-ups, or donor eligibility).
@@ -304,6 +305,32 @@ async function runAgentTurn({
     });
   }
 
+  // Deduplicate actionCards so each card type or doctor list is only presented once
+  const deduplicatedCards = [];
+  const seenDoctorIds = new Set();
+
+  for (const card of actionCards) {
+    if (card.type === 'doctors') {
+      const uniqueDocs = (card.doctors || []).filter(doc => {
+        const id = (doc.id || doc._id || doc.name).toString();
+        if (seenDoctorIds.has(id)) return false;
+        seenDoctorIds.add(id);
+        return true;
+      });
+
+      if (uniqueDocs.length > 0) {
+        const existingDocCard = deduplicatedCards.find(c => c.type === 'doctors');
+        if (existingDocCard) {
+          existingDocCard.doctors = [...existingDocCard.doctors, ...uniqueDocs].slice(0, 3);
+        } else {
+          deduplicatedCards.push({ ...card, doctors: uniqueDocs.slice(0, 3) });
+        }
+      }
+    } else {
+      deduplicatedCards.push(card);
+    }
+  }
+
   // Quick chips generation
   const quickChips = generateQuickChips(message, executedTools, role, isEmergency);
 
@@ -311,7 +338,7 @@ async function runAgentTurn({
     reply: finalReply,
     isEmergency,
     toolCalls: executedTools,
-    cards: actionCards,
+    cards: deduplicatedCards,
     quickChips
   };
 }
@@ -346,9 +373,11 @@ async function generateDeterministicReply({ message, user, role, language, execu
       actionCards.push({ type: 'doctors', doctors: docSearch.doctors });
     }
 
-    const docListText = docSearch.doctors?.map(d => `• **${d.name}** (${d.specialty}) — OPD Room ${d.roomNumber}, Fee: ₹${d.consultationFee}`).join('\n') || '';
+    if (language === 'hi') {
+      return `आपके बताए लक्षणों के आधार पर, हमारा क्लिनिकल ट्राइएज आपको **${triage.suggestedSpecialty}** विशेषज्ञ से परामर्श लेने का सुझाव देता है।\n\n**कारण**: ${triage.rationale}\n\n*कृपया नीचे दिए गए डॉक्टर कार्ड्स में से किसी एक विशेषज्ञ को चुनकर तुरंत स्लॉट बुक करें।*`;
+    }
 
-    return `Based on your described symptoms, our clinical triage suggests consulting a **${triage.suggestedSpecialty}** specialist.\n\n**Rationale**: ${triage.rationale}\n\n**Available Specialists**:\n${docListText || 'Specialists are available in our OPD directory.'}\n\n*Notice: This is general guidance, not a medical diagnosis. Please consult a qualified doctor.*`;
+    return `Based on your described symptoms, our clinical triage suggests consulting a **${triage.suggestedSpecialty}** specialist.\n\n**Rationale**: ${triage.rationale}\n\n*Please select an available specialist from the interactive cards below to check timings and schedule a confirmed consultation.*`;
   }
 
   // 3. General Health Concepts (Answers general questions directly!)

@@ -680,42 +680,52 @@ export default function AssistantChatView({ isWidget = false, onClose = null, on
               <SimpleMarkdown content={m.text} />
 
               {/* Render Cards (Doctors, Emergency, Booking) */}
-              {m.cards?.map((card, cIdx) => {
-                if (card.type === 'doctors' && card.doctors?.length > 0) {
-                  return (
-                    <div key={cIdx} className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-700 space-y-2">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-teal-700 dark:text-teal-300 block">
-                        Recommended Available Specialists
-                      </span>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {card.doctors.map((doc, dIdx) => (
-                          <div
-                            key={dIdx}
-                            className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600 flex items-center justify-between text-xs"
-                          >
-                            <div>
-                              <span className="font-bold text-slate-900 dark:text-white block">
-                                {doc.name}
-                              </span>
-                              <span className="text-slate-500 text-[10px] block">
-                                {doc.specialty} • {doc.qualifications || 'MBBS'}
-                              </span>
-                              <span className="text-teal-600 dark:text-teal-400 font-bold text-[10px] block mt-0.5">
-                                OPD Room {doc.roomNumber} • Fee: ₹{doc.consultationFee}
-                              </span>
-                            </div>
-                            <button
-                              onClick={() => handleBookingInitiate(doc)}
-                              className="px-2.5 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-bold text-xs transition shadow-sm"
+              {(() => {
+                const renderedDocIds = new Set();
+                return m.cards?.map((card, cIdx) => {
+                  if (card.type === 'doctors' && card.doctors?.length > 0) {
+                    const uniqueDoctors = card.doctors.filter(doc => {
+                      const id = (doc.id || doc._id || doc.name).toString();
+                      if (renderedDocIds.has(id)) return false;
+                      renderedDocIds.add(id);
+                      return true;
+                    });
+                    if (uniqueDoctors.length === 0) return null;
+
+                    return (
+                      <div key={cIdx} className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-700 space-y-2">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-teal-700 dark:text-teal-300 block">
+                          Recommended Available Specialists
+                        </span>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {uniqueDoctors.map((doc, dIdx) => (
+                            <div
+                              key={dIdx}
+                              className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600 flex items-center justify-between text-xs"
                             >
-                              Book Slot
-                            </button>
-                          </div>
-                        ))}
+                              <div>
+                                <span className="font-bold text-slate-900 dark:text-white block">
+                                  {doc.name}
+                                </span>
+                                <span className="text-slate-500 text-[10px] block">
+                                  {doc.specialty} • {doc.qualifications || 'MBBS'}
+                                </span>
+                                <span className="text-teal-600 dark:text-teal-400 font-bold text-[10px] block mt-0.5">
+                                  OPD Room {doc.roomNumber} • Fee: ₹{doc.consultationFee}
+                                </span>
+                              </div>
+                              <button
+                                onClick={() => handleBookingInitiate(doc)}
+                                className="px-2.5 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-bold text-xs transition shadow-sm"
+                              >
+                                Book Slot
+                              </button>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  );
-                }
+                    );
+                  }
 
                 if (card.type === 'booking_confirmation' && card.data?.details) {
                   const b = card.data.details;
@@ -754,7 +764,8 @@ export default function AssistantChatView({ isWidget = false, onClose = null, on
                 }
 
                 return null;
-              })}
+              });
+            })()}
 
               {m.isEmergency && (
                 <div className="mt-3 space-y-2">
@@ -1004,9 +1015,16 @@ export default function AssistantChatView({ isWidget = false, onClose = null, on
               <button
                 onClick={confirmBookingExecution}
                 disabled={isBookingSubmitting}
-                className="flex-1 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 font-bold text-xs text-white transition shadow-md"
+                className="flex-1 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 font-bold text-xs text-white transition shadow-md flex items-center justify-center space-x-1.5"
               >
-                {isBookingSubmitting ? 'Confirming...' : 'Yes, Confirm'}
+                {isBookingSubmitting ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Confirming...</span>
+                  </>
+                ) : (
+                  <span>Yes, Confirm</span>
+                )}
               </button>
             </div>
           </div>

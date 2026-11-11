@@ -372,29 +372,42 @@ exports.executeAction = async (req, res, next) => {
         status: 'scheduled'
       });
 
-      // Send confirmation notification
-      await sendNotification({
-        userId: user._id,
-        userPhone: user.phone,
-        userEmail: user.email,
-        type: 'appointment_booked',
-        title: 'Appointment Confirmed via HealthMS AI',
-        message: `Your booking with Dr. ${doctor.userId?.name} is confirmed for ${date} at ${timeSlot}. Token #${tokenNumber} (${tokenCode}).`,
-        channel: 'all',
-        meta: { appointmentId: appointment._id, tokenNumber, tokenCode }
-      });
+      const doctorDisplayName = doctor.userId?.name
+        ? (doctor.userId.name.startsWith('Dr.') ? doctor.userId.name : `Dr. ${doctor.userId.name}`)
+        : 'Specialist';
 
-      // Audit Log
-      await logAudit({
-        userId: user._id,
-        userName: user.name,
-        userRole: user.role,
-        action: 'AI_ACTION:BOOK_APPOINTMENT',
-        resourceType: 'Appointment',
-        resourceId: appointment._id,
-        patientId: user._id,
-        details: { doctorId: doctor._id, date, timeSlot, tokenCode },
-        ipAddress: req.ip || '127.0.0.1'
+      // Send confirmation notification & audit log asynchronously in background so booking returns instantly
+      setImmediate(async () => {
+        try {
+          await sendNotification({
+            userId: user._id,
+            userPhone: user.phone,
+            userEmail: user.email,
+            type: 'appointment_booked',
+            title: 'Appointment Confirmed via HealthMS AI',
+            message: `Your booking with ${doctorDisplayName} is confirmed for ${date} at ${timeSlot}. Token #${tokenNumber} (${tokenCode}).`,
+            channel: 'all',
+            meta: { appointmentId: appointment._id, tokenNumber, tokenCode }
+          });
+        } catch (notifErr) {
+          console.warn('[AI Booking] Background notification notice:', notifErr.message);
+        }
+
+        try {
+          await logAudit({
+            userId: user._id,
+            userName: user.name,
+            userRole: user.role,
+            action: 'AI_ACTION:BOOK_APPOINTMENT',
+            resourceType: 'Appointment',
+            resourceId: appointment._id,
+            patientId: user._id,
+            details: { doctorId: doctor._id, date, timeSlot, tokenCode },
+            ipAddress: req.ip || '127.0.0.1'
+          });
+        } catch (auditErr) {
+          console.warn('[AI Booking] Audit log notice:', auditErr.message);
+        }
       });
 
       // Record confirmation message in session if provided
@@ -403,12 +416,12 @@ exports.executeAction = async (req, res, next) => {
           sessionId,
           userId: user._id,
           sender: 'assistant',
-          text: `✅ **Appointment Confirmed!**\n\nYour consultation with **Dr. ${doctor.userId?.name}** (${doctor.specialty}) has been confirmed for **${date}** at **${timeSlot}**.\n\n• **Token**: #${tokenNumber} (${tokenCode})\n• **Hospital**: ${doctor.hospitalId?.name}\n• **Room**: ${doctor.roomNumber}\n\nYou can track live queue status anytime in **Live Queue Tracker**!`,
+          text: `✅ **Appointment Confirmed!**\n\nYour consultation with **${doctorDisplayName}** (${doctor.specialty}) has been confirmed for **${date}** at **${timeSlot}**.\n\n• **Token**: #${tokenNumber} (${tokenCode})\n• **Hospital**: ${doctor.hospitalId?.name || 'HealthMS'}\n• **Room**: ${doctor.roomNumber}\n\nYou can track live queue status anytime in **Live Queue Tracker**!`,
           cards: [{
             type: 'appointment_success',
             appointment: {
               id: appointment._id,
-              doctorName: `Dr. ${doctor.userId?.name}`,
+              doctorName: doctorDisplayName,
               specialty: doctor.specialty,
               date,
               timeSlot,
@@ -425,7 +438,7 @@ exports.executeAction = async (req, res, next) => {
         success: true,
         appointment: {
           id: appointment._id,
-          doctorName: `Dr. ${doctor.userId?.name}`,
+          doctorName: doctorDisplayName,
           specialty: doctor.specialty,
           date,
           timeSlot,

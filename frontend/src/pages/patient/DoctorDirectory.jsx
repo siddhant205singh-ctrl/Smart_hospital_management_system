@@ -32,7 +32,8 @@ import {
   Loader2,
   AlertCircle,
   Copy,
-  Check
+  Check,
+  RefreshCw
 } from 'lucide-react';
 
 export default function DoctorDirectory() {
@@ -80,6 +81,7 @@ export default function DoctorDirectory() {
   const [uploadFiles, setUploadFiles] = useState([]);
   const [documentConsent, setDocumentConsent] = useState(false);
   const [recordsTab, setRecordsTab] = useState('reports');
+  const [recordsLoading, setRecordsLoading] = useState(false);
 
   // Initialize query params
   useEffect(() => {
@@ -123,6 +125,34 @@ export default function DoctorDirectory() {
     }
   }, [selectedDoctor, bookingDate]);
 
+  const loadPatientRecords = async () => {
+    if (!user) return;
+    setRecordsLoading(true);
+    try {
+      const [reportsRes, medsRes] = await Promise.allSettled([
+        api.get('/reports/my').catch(() => api.get('/reports')).catch(() => api.get('/medical-reports')),
+        api.get('/medicines')
+      ]);
+      if (reportsRes.status === 'fulfilled' && reportsRes.value?.data?.reports) {
+        setAvailableReports(reportsRes.value.data.reports);
+      }
+      if (medsRes.status === 'fulfilled' && medsRes.value?.data?.medicines) {
+        setAvailableMedicines(medsRes.value.data.medicines);
+      }
+    } catch (err) {
+      console.warn('[DoctorDirectory] Error fetching patient records:', err);
+    } finally {
+      setRecordsLoading(false);
+    }
+  };
+
+  // Refresh patient records when advancing to step 2 (document selection)
+  useEffect(() => {
+    if (selectedDoctor && bookingStep === 2) {
+      loadPatientRecords();
+    }
+  }, [bookingStep, selectedDoctor]);
+
   const handleOpenBooking = (doc) => {
     if (!user) {
       navigate('/login');
@@ -138,8 +168,7 @@ export default function DoctorDirectory() {
     setBookingSuccess(null);
 
     // Load patient's existing records for sharing
-    api.get('/medical-reports').then(res => setAvailableReports(res.data.reports || [])).catch(() => {});
-    api.get('/medicines').then(res => setAvailableMedicines(res.data.medicines || [])).catch(() => {});
+    loadPatientRecords();
   };
 
   const toggleSelectReport = (id) => {
@@ -693,9 +722,20 @@ export default function DoctorDirectory() {
                           <Paperclip className="w-3.5 h-3.5 text-teal-600" />
                           <span>Attach Records For Dr. {selectedDoctor?.name || selectedDoctor?.user?.name}</span>
                         </span>
-                        <span className="text-[10px] text-slate-400">
-                          {totalSharedCount} document(s) attached
-                        </span>
+                        <div className="flex items-center space-x-2">
+                          <button
+                            type="button"
+                            onClick={loadPatientRecords}
+                            disabled={recordsLoading}
+                            className="p-1 rounded-lg text-slate-400 hover:text-teal-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+                            title="Refresh records and medicines"
+                          >
+                            <RefreshCw className={`w-3.5 h-3.5 ${recordsLoading ? 'animate-spin' : ''}`} />
+                          </button>
+                          <span className="text-[10px] text-slate-400">
+                            {totalSharedCount} document(s) attached
+                          </span>
+                        </div>
                       </div>
 
                       {/* Subtabs: Existing Reports, Medicines, Upload New */}
@@ -738,7 +778,12 @@ export default function DoctorDirectory() {
                       {/* Tab 1: Available Medical Reports */}
                       {recordsTab === 'reports' && (
                         <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
-                          {availableReports.length === 0 ? (
+                          {recordsLoading ? (
+                            <div className="py-4 flex items-center justify-center space-x-2 text-slate-400 text-xs">
+                              <Loader2 className="w-3.5 h-3.5 animate-spin text-teal-600" />
+                              <span>Loading reports...</span>
+                            </div>
+                          ) : availableReports.length === 0 ? (
                             <p className="text-[11px] text-slate-400 text-center py-3">No existing medical reports saved in your profile.</p>
                           ) : (
                             availableReports.map(rep => {
@@ -764,7 +809,7 @@ export default function DoctorDirectory() {
                                         {rep.title}
                                       </span>
                                       <span className="text-[10px] text-slate-400">
-                                        {rep.reportType} • {new Date(rep.reportDate || rep.createdAt).toLocaleDateString()}
+                                        {rep.reportType ? rep.reportType.replace(/_/g, ' ') : 'Medical Report'} • {new Date(rep.reportDate || rep.createdAt).toLocaleDateString()}
                                       </span>
                                     </div>
                                   </div>
@@ -779,7 +824,12 @@ export default function DoctorDirectory() {
                       {/* Tab 2: Available Medicines */}
                       {recordsTab === 'medicines' && (
                         <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
-                          {availableMedicines.length === 0 ? (
+                          {recordsLoading ? (
+                            <div className="py-4 flex items-center justify-center space-x-2 text-slate-400 text-xs">
+                              <Loader2 className="w-3.5 h-3.5 animate-spin text-teal-600" />
+                              <span>Loading medicines...</span>
+                            </div>
+                          ) : availableMedicines.length === 0 ? (
                             <p className="text-[11px] text-slate-400 text-center py-3">No medicines saved in "My Medicines".</p>
                           ) : (
                             availableMedicines.map(med => {
@@ -802,10 +852,10 @@ export default function DoctorDirectory() {
                                     )}
                                     <div>
                                       <span className="font-bold text-slate-800 dark:text-slate-200 block truncate max-w-[200px]">
-                                        {med.brandName} {med.strength}
+                                        {med.brandName || med.name} {med.strength || ''}
                                       </span>
                                       <span className="text-[10px] text-slate-400">
-                                        {med.dosageForm} • {med.status.replace('_', ' ')}
+                                        {med.dosageForm || 'Medicine'} • {(med.status || 'currently_taking').replace(/_/g, ' ')}
                                       </span>
                                     </div>
                                   </div>

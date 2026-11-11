@@ -9,18 +9,41 @@ exports.getDoctorQueue = async (req, res, next) => {
   try {
     const { doctorId } = req.params;
     const todayStr = new Date().toISOString().split('T')[0];
+    const targetDate = req.query.date || todayStr;
 
     const doctor = await Doctor.findById(doctorId).populate('userId', 'name email avatar');
     if (!doctor) return res.status(404).json({ error: 'Doctor not found' });
 
+    // 1. Identify active in-consultation patient accurately
+    let inConsultation = null;
+    if (doctor.currentAppointmentId) {
+      inConsultation = await Appointment.findById(doctor.currentAppointmentId)
+        .populate('patientId', 'name phone email avatar familyMembers');
+      if (inConsultation && inConsultation.status !== 'in_consultation') {
+        inConsultation = null;
+      }
+    }
+
+    if (!inConsultation) {
+      // Find the most recently started in-consultation appointment for this doctor
+      inConsultation = await Appointment.findOne({
+        doctorId,
+        status: 'in_consultation'
+      }).sort({ consultationStartTime: -1, updatedAt: -1 })
+        .populate('patientId', 'name phone email avatar familyMembers');
+    }
+
+    // 2. Fetch queue for targeted date
     const appointments = await Appointment.find({
       doctorId,
-      date: todayStr
+      date: targetDate
     }).populate('patientId', 'name phone email avatar familyMembers')
       .sort({ tokenNumber: 1 });
 
-    const inConsultation = appointments.find(a => a.status === 'in_consultation');
-    const waiting = appointments.filter(a => ['checked_in', 'scheduled', 'called'].includes(a.status));
+    const waiting = appointments.filter(a =>
+      ['checked_in', 'scheduled', 'called'].includes(a.status) &&
+      (!inConsultation || a._id.toString() !== inConsultation._id.toString())
+    );
     const completed = appointments.filter(a => a.status === 'completed');
     const noShow = appointments.filter(a => a.status === 'no_show');
 
@@ -33,7 +56,7 @@ exports.getDoctorQueue = async (req, res, next) => {
         name: doctor.userId?.name,
         specialty: doctor.specialty,
         roomNumber: doctor.roomNumber,
-        liveStatus: doctor.liveStatus,
+        liveStatus: inConsultation ? 'in_consultation' : (doctor.liveStatus === 'in_consultation' ? 'available' : doctor.liveStatus),
         avgConsultationTime: rollingAvg
       },
       currentPatient: inConsultation || null,
@@ -187,6 +210,21 @@ exports.startConsultation = async (req, res, next) => {
     if (!appointment) return res.status(404).json({ error: 'Appointment not found' });
     if (appointment.status === 'cancelled') return res.status(400).json({ error: 'Cannot start a cancelled appointment' });
 
+    // Auto-complete any prior consultation for this doctor to eliminate orphaned consultations
+    await Appointment.updateMany(
+      {
+        doctorId: appointment.doctorId._id,
+        _id: { $ne: appointment._id },
+        status: 'in_consultation'
+      },
+      {
+        $set: {
+          status: 'completed',
+          consultationEndTime: new Date()
+        }
+      }
+    );
+
     appointment.status = 'in_consultation';
     appointment.consultationStartTime = new Date();
     await appointment.save();
@@ -236,6 +274,20 @@ exports.endConsultation = async (req, res, next) => {
     if (prescription) appointment.prescription = prescription;
     if (vitals) appointment.vitals = vitals;
     await appointment.save();
+
+    // Ensure all in_consultation appointments for this doctor are completed
+    await Appointment.updateMany(
+      {
+        doctorId: appointment.doctorId,
+        status: 'in_consultation'
+      },
+      {
+        $set: {
+          status: 'completed',
+          consultationEndTime: endTime
+        }
+      }
+    );
 
     // Record metric for rolling average calculation
     await ConsultationMetric.create({

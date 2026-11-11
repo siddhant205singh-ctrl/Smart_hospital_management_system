@@ -12,6 +12,7 @@ const { protect } = require('../middleware/authMiddleware');
 
 // Patient reports endpoints
 router.post('/', protect, uploadMiddleware, uploadReport);
+router.get('/', protect, getMyReports);
 router.get('/my', protect, getMyReports);
 router.post('/:id/summarize', protect, summarizePatientReport);
 router.put('/:id/visibility', protect, updateReportVisibility);

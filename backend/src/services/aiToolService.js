@@ -534,7 +534,7 @@ async function executeTool(name, args = {}, sessionContext = {}) {
       count: doctors.length,
       doctors: doctors.map(d => ({
         id: d._id,
-        name: d.userId?.name ? `Dr. ${d.userId.name}` : 'Specialist',
+        name: d.userId?.name ? (d.userId.name.startsWith('Dr.') ? d.userId.name : `Dr. ${d.userId.name}`) : 'Specialist',
         specialty: d.specialty,
         qualifications: d.qualifications?.map(q => q.degree).join(', ') || 'MBBS',
         experienceYears: d.experienceYears || 5,

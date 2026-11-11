@@ -593,29 +593,7 @@ exports.loadDoctorConsultationDocuments = async (req, res, next) => {
       return res.status(403).json({ error: 'Document sharing consent for this consultation has expired.', consentStatus: 'expired' });
     }
 
-    let shares = await AppointmentDocumentShare.find({ appointmentId: appointment._id }).sort({ createdAt: -1 });
-
-    // Also auto-sync any reports uploaded by patient in their profile (with visibility not private)
-    const patientId = appointment.patientId?._id || appointment.patientId;
-    const existingShareDocIds = shares.map(s => s.documentId?.toString());
-    const patientReports = await MedicalReport.find({
-      patientId,
-      visibility: { $ne: 'private' },
-      _id: { $nin: existingShareDocIds }
-    }).sort({ reportDate: -1, createdAt: -1 });
-
-    for (const rep of patientReports) {
-      const newShare = await AppointmentDocumentShare.create({
-        appointmentId: appointment._id,
-        patientId,
-        documentType: 'medical_report',
-        documentId: rep._id,
-        title: rep.title,
-        reportType: rep.reportType,
-        fileUrl: rep.fileUrl
-      });
-      shares.push(newShare);
-    }
+    const shares = await AppointmentDocumentShare.find({ appointmentId: appointment._id }).sort({ createdAt: 1 });
 
     if (appointment.documentsCount !== shares.length) {
       appointment.documentsCount = shares.length;
