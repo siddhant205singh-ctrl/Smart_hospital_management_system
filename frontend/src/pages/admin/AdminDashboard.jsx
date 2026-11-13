@@ -18,7 +18,13 @@ import {
   Heart,
   Droplet,
   Radio,
-  Send
+  Send,
+  Printer,
+  Loader2,
+  CheckCircle2,
+  Phone,
+  UserCheck,
+  RotateCcw
 } from 'lucide-react';
 import {
   LineChart,
@@ -41,7 +47,11 @@ export default function AdminDashboard() {
   // Walk-in form state
   const [walkinName, setWalkinName] = useState('');
   const [walkinPhone, setWalkinPhone] = useState('');
+  const [walkinSpecialty, setWalkinSpecialty] = useState('');
   const [walkinDoctorId, setWalkinDoctorId] = useState('');
+  const [walkinRoom, setWalkinRoom] = useState('');
+  const [walkinSymptoms, setWalkinSymptoms] = useState('');
+  const [walkinSubmitting, setWalkinSubmitting] = useState(false);
   const [doctors, setDoctors] = useState([]);
   const [walkinSuccess, setWalkinSuccess] = useState(null);
 
@@ -65,26 +75,29 @@ export default function AdminDashboard() {
   const fetchData = async () => {
     try {
       const [overRes, analRes, docsRes, bgRes, ftRes, bldRes] = await Promise.all([
-        api.get('/admin/overview'),
-        api.get('/admin/analytics'),
-        api.get('/doctors'),
+        api.get('/admin/overview').catch(() => ({ data: null })),
+        api.get('/admin/analytics').catch(() => ({ data: null })),
+        api.get('/doctors').catch(() => ({ data: { doctors: [] } })),
         api.get('/emergency-cases/break-glass-logs').catch(() => ({ data: { logs: [] } })),
         api.get('/fast-track/settings').catch(() => ({ data: { settings: null } })),
         api.get('/blood-requests').catch(() => ({ data: { requests: [] } }))
       ]);
-      setOverview(overRes.data);
-      setAnalytics(analRes.data);
-      setDoctors(docsRes.data.doctors || []);
+      if (overRes.data) setOverview(overRes.data);
+      if (analRes.data) setAnalytics(analRes.data);
+      const docsList = docsRes.data.doctors || [];
+      setDoctors(docsList);
       setBreakGlassLogs(bgRes.data.logs || []);
       setBloodRequests(bldRes.data.requests || []);
       if (ftRes.data?.settings) {
         setFastTrackSettings(ftRes.data.settings);
       }
-      if (docsRes.data.doctors?.length > 0) {
-        setWalkinDoctorId(docsRes.data.doctors[0]._id);
+      if (docsList.length > 0) {
+        setWalkinDoctorId(prev => prev || docsList[0]._id);
+        setWalkinSpecialty(prev => prev || docsList[0].specialty || '');
+        setWalkinRoom(prev => prev || docsList[0].roomNumber || 'OPD-101');
       }
     } catch (err) {
-      console.error(err);
+      console.error('Error fetching admin data:', err);
     } finally {
       setLoading(false);
     }
@@ -94,20 +107,57 @@ export default function AdminDashboard() {
     fetchData();
   }, []);
 
+  const handleSpecialtyChange = (spec) => {
+    setWalkinSpecialty(spec);
+    const docsInSpec = spec ? doctors.filter(d => d.specialty?.toLowerCase() === spec.toLowerCase()) : doctors;
+    if (docsInSpec.length > 0) {
+      setWalkinDoctorId(docsInSpec[0]._id);
+      setWalkinRoom(docsInSpec[0].roomNumber || 'OPD-101');
+    } else {
+      setWalkinDoctorId('');
+      setWalkinRoom('');
+    }
+  };
+
+  const handleDoctorChange = (docId) => {
+    setWalkinDoctorId(docId);
+    const doc = doctors.find(d => d._id === docId);
+    if (doc) {
+      setWalkinRoom(doc.roomNumber || 'OPD-101');
+      if (doc.specialty) setWalkinSpecialty(doc.specialty);
+    }
+  };
+
   const handleCreateWalkIn = async (e) => {
     e.preventDefault();
+    if (!walkinName.trim() || !walkinPhone.trim() || !walkinDoctorId) {
+      alert('Please fill in patient name, mobile phone number, and select an assigned doctor.');
+      return;
+    }
+    setWalkinSubmitting(true);
+    const submittedPhone = walkinPhone.trim();
+    const submittedRoom = walkinRoom.trim();
     try {
       const res = await api.post('/admin/walk-in', {
-        patientName: walkinName,
-        phone: walkinPhone,
-        doctorId: walkinDoctorId
+        patientName: walkinName.trim(),
+        phone: submittedPhone,
+        doctorId: walkinDoctorId,
+        roomNumber: submittedRoom,
+        symptoms: walkinSymptoms.trim()
       });
-      setWalkinSuccess(res.data.appointment);
+      setWalkinSuccess({
+        ...res.data.appointment,
+        patientPhone: res.data.appointment?.patientPhone || res.data.smsTo || res.data.appointment?.patientId?.phone || submittedPhone,
+        roomNumber: res.data.appointment?.roomNumber || res.data.assignedRoom || submittedRoom
+      });
       setWalkinName('');
       setWalkinPhone('');
+      setWalkinSymptoms('');
       fetchData();
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to create walk-in token');
+    } finally {
+      setWalkinSubmitting(false);
     }
   };
 
@@ -310,63 +360,200 @@ export default function AdminDashboard() {
           <div>
             <h3 className="font-bold text-base text-slate-900 dark:text-white flex items-center space-x-2">
               <Plus className="w-5 h-5 text-teal-600" />
-              <span>Receptionist Rapid Walk-in Generator</span>
+              <span>Walk-in Token Generator & OPD Desk</span>
             </h3>
-            <p className="text-xs text-slate-500">For non-smartphone patients arriving directly at reception counter.</p>
+            <p className="text-xs text-slate-500">
+              Select medical specialty, assign doctor and OPD room, and send instant SMS token confirmation to patient.
+            </p>
           </div>
 
+          {/* Token Generated Success Card */}
           {walkinSuccess && (
-            <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 rounded-2xl border border-emerald-200 text-emerald-800 dark:text-emerald-200 text-xs flex items-center justify-between">
-              <span>Token Generated: <strong>#{walkinSuccess.tokenNumber} ({walkinSuccess.tokenCode})</strong></span>
-              <span className="text-[11px] font-bold text-emerald-600">Checked In ✓</span>
+            <div className="p-4 bg-emerald-50 dark:bg-emerald-950/40 rounded-2xl border border-emerald-200 dark:border-emerald-800 text-xs space-y-2.5 animate-in fade-in">
+              <div className="flex items-center justify-between">
+                <span className="text-base font-black text-emerald-800 dark:text-emerald-200 flex items-center space-x-1.5">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                  <span>Token #{walkinSuccess.tokenNumber} ({walkinSuccess.tokenCode})</span>
+                </span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
+                  Checked In ✓
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 pt-1 border-t border-emerald-200/60 dark:border-emerald-800/60 text-slate-700 dark:text-slate-300">
+                <div>
+                  <span className="text-[10px] text-slate-400 block font-semibold">Assigned Doctor:</span>
+                  <span className="font-bold text-slate-900 dark:text-white">
+                    {walkinSuccess.doctorId?.userId?.name || 'Assigned Physician'}
+                  </span>
+                  <span className="text-[10px] text-slate-500 block">
+                    {walkinSuccess.doctorId?.specialty || walkinSpecialty || 'General'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 block font-semibold">Assigned OPD Room:</span>
+                  <span className="font-bold text-teal-700 dark:text-teal-300">
+                    Room {walkinSuccess.roomNumber || walkinSuccess.doctorId?.roomNumber || 'OPD-101'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 block font-semibold">Patient:</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">
+                    {walkinSuccess.bookedForFamilyMember || walkinSuccess.patientId?.name || 'Walk-in Patient'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 block font-semibold">Mobile Phone:</span>
+                  <span className="font-mono text-slate-700 dark:text-slate-300">
+                    {walkinSuccess.patientPhone || walkinSuccess.patientId?.phone || 'Confidential'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-2 rounded-xl bg-white/70 dark:bg-slate-900/60 border border-emerald-200 dark:border-emerald-800/50 flex items-center space-x-2 text-[11px] text-emerald-700 dark:text-emerald-300">
+                <Phone className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                <span>
+                  Booking confirmation SMS & token alert dispatched to <strong>{walkinSuccess.patientPhone || walkinSuccess.patientId?.phone}</strong>
+                </span>
+              </div>
+
+              <div className="flex items-center space-x-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center space-x-1 transition shadow-xs"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Print Token Slip</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setWalkinSuccess(null)}
+                  className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs flex items-center space-x-1 transition"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Issue Another Token</span>
+                </button>
+              </div>
             </div>
           )}
 
-          <form onSubmit={handleCreateWalkIn} className="space-y-3 text-xs">
+          <form onSubmit={handleCreateWalkIn} className="space-y-3.5 text-xs">
+            {/* 1. Doctor Type / Medical Specialty */}
             <div>
-              <label className="font-semibold block mb-1">Patient Name</label>
-              <input
-                type="text"
-                required
-                value={walkinName}
-                onChange={(e) => setWalkinName(e.target.value)}
-                placeholder="Walk-in Patient Name"
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
-              />
-            </div>
-
-            <div>
-              <label className="font-semibold block mb-1">Mobile Phone (for SMS updates)</label>
-              <input
-                type="tel"
-                required
-                value={walkinPhone}
-                onChange={(e) => setWalkinPhone(e.target.value)}
-                placeholder="+91-9876543210"
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
-              />
-            </div>
-
-            <div>
-              <label className="font-semibold block mb-1">Assign Doctor</label>
+              <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                Doctor Type / Medical Specialty
+              </label>
               <select
-                value={walkinDoctorId}
-                onChange={(e) => setWalkinDoctorId(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
+                value={walkinSpecialty}
+                onChange={(e) => handleSpecialtyChange(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-medium"
               >
-                {doctors.map(d => (
-                  <option key={d._id} value={d._id}>
-                    {d.userId?.name} ({d.specialty} - Room {d.roomNumber})
+                <option value="">All Medical Specialties (All Available Doctors)</option>
+                {Array.from(new Set(doctors.map(d => d.specialty).filter(Boolean))).map(spec => (
+                  <option key={spec} value={spec}>
+                    {spec}
                   </option>
                 ))}
               </select>
             </div>
 
+            {/* 2. Assign Doctor & Assigned OPD Room */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              <div className="sm:col-span-2">
+                <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                  Assign Doctor
+                </label>
+                <select
+                  required
+                  value={walkinDoctorId}
+                  onChange={(e) => handleDoctorChange(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-medium"
+                >
+                  {(walkinSpecialty ? doctors.filter(d => d.specialty?.toLowerCase() === walkinSpecialty.toLowerCase()) : doctors).map(d => (
+                    <option key={d._id} value={d._id}>
+                      {d.userId?.name || 'Physician'} ({d.specialty} • Room {d.roomNumber || 'OPD-101'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                  OPD Room
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={walkinRoom}
+                  onChange={(e) => setWalkinRoom(e.target.value)}
+                  placeholder="e.g. OPD-101"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-bold text-teal-700 dark:text-teal-300"
+                />
+              </div>
+            </div>
+
+            {/* 3. Patient Name & Mobile Number */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div>
+                <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                  Patient Full Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={walkinName}
+                  onChange={(e) => setWalkinName(e.target.value)}
+                  placeholder="Walk-in Patient Name"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                  Patient Mobile Number (for SMS confirmation)
+                </label>
+                <input
+                  type="tel"
+                  required
+                  value={walkinPhone}
+                  onChange={(e) => setWalkinPhone(e.target.value)}
+                  placeholder="+91-9876543210"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-mono"
+                />
+              </div>
+            </div>
+
+            {/* 4. Reason for Visit / Symptoms */}
+            <div>
+              <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                Reason for Visit / Symptoms (Optional)
+              </label>
+              <input
+                type="text"
+                value={walkinSymptoms}
+                onChange={(e) => setWalkinSymptoms(e.target.value)}
+                placeholder="Brief reason for walk-in consultation..."
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
+              />
+            </div>
+
             <button
               type="submit"
-              className="w-full py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl shadow-md transition"
+              disabled={walkinSubmitting || !walkinDoctorId}
+              className="w-full py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl shadow-md transition disabled:opacity-60 flex items-center justify-center space-x-2"
             >
-              Print Walk-in Token & Push to Queue
+              {walkinSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Generating Token & Sending Confirmation...</span>
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4" />
+                  <span>Generate Token, Assign Room & Send SMS</span>
+                </>
+              )}
             </button>
           </form>
         </div>

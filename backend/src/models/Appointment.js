@@ -10,6 +10,7 @@ const appointmentSchema = new mongoose.Schema({
   timeSlot: { type: String, required: true }, // e.g. "10:00 - 10:15"
   tokenNumber: { type: Number, required: true },
   tokenCode: { type: String, required: true }, // e.g. "CARD-014"
+  roomNumber: { type: String, default: '' }, // Assigned OPD room e.g. "OPD-101"
   qrCode: { type: String }, // Base64 data URI of QR code
   status: { 
     type: String, 

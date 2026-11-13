@@ -7,6 +7,7 @@ const QRCode = require('qrcode');
 const { recalculateDoctorQueue } = require('../services/waitEngine');
 const { logAudit } = require('../middleware/auditMiddleware');
 const { checkAiHealth } = require('../services/aiService');
+const { sendNotification } = require('../services/notificationService');
 
 // @route   GET /api/admin/overview
 // Live hospital overview: patient flow, overcrowding per department, doctor load
@@ -116,14 +117,26 @@ exports.getAnalytics = async (req, res, next) => {
 };
 
 // @route   POST /api/admin/walk-in
-// Rapid walk-in token generation for receptionist
+// Rapid walk-in token generation for receptionist & hospital admin
 exports.createWalkInToken = async (req, res, next) => {
   try {
-    const { patientName, phone, doctorId, symptoms } = req.body;
+    const { patientName, phone, doctorId, symptoms, roomNumber } = req.body;
+    if (!patientName || !phone || !doctorId) {
+      return res.status(400).json({ error: 'Patient name, mobile phone number, and doctor selection are required.' });
+    }
+
     const todayStr = new Date().toISOString().split('T')[0];
 
     const doctor = await Doctor.findById(doctorId).populate('departmentId').populate('hospitalId').populate('userId');
     if (!doctor) return res.status(404).json({ error: 'Doctor not found' });
+
+    // Use passed roomNumber or fall back to doctor's assigned room
+    const assignedRoom = roomNumber || doctor.roomNumber || 'OPD-101';
+    // If doctor profile does not have a designated room yet, initialize it
+    if (!doctor.roomNumber && roomNumber) {
+      doctor.roomNumber = roomNumber;
+      await doctor.save();
+    }
 
     // Find or create temporary guest user for walk-in
     let user = await User.findOne({ phone });
@@ -133,21 +146,22 @@ exports.createWalkInToken = async (req, res, next) => {
         phone,
         email: `walkin_${Date.now()}@healthms.hospital`,
         password: 'TemporaryPassword123!',
-        role: 'patient'
+        role: 'patient',
+        status: 'active'
       });
     }
 
     const countToday = await Appointment.countDocuments({ doctorId, date: todayStr });
     const tokenNumber = countToday + 1;
-    const deptCode = doctor.departmentId?.code || 'WALK';
+    const deptCode = doctor.departmentId?.code || (doctor.specialty ? doctor.specialty.substring(0, 4).toUpperCase() : 'WALK');
     const tokenCode = `${deptCode}-W${tokenNumber.toString().padStart(3, '0')}`;
 
-    const qrPayload = JSON.stringify({ tokenCode, tokenNumber, doctorId: doctor._id, date: todayStr });
+    const qrPayload = JSON.stringify({ tokenCode, tokenNumber, doctorId: doctor._id, date: todayStr, roomNumber: assignedRoom });
     const qrCode = await QRCode.toDataURL(qrPayload);
 
     const appointment = await Appointment.create({
-      hospitalId: doctor.hospitalId._id,
-      departmentId: doctor.departmentId._id,
+      hospitalId: doctor.hospitalId?._id || doctor.hospitalId,
+      departmentId: doctor.departmentId?._id || doctor.departmentId,
       doctorId: doctor._id,
       patientId: user._id,
       bookedForFamilyMember: patientName,
@@ -155,6 +169,7 @@ exports.createWalkInToken = async (req, res, next) => {
       timeSlot: 'Walk-in Immediate',
       tokenNumber,
       tokenCode,
+      roomNumber: assignedRoom,
       qrCode,
       symptoms: symptoms || 'Walk-in Consultation',
       status: 'checked_in', // auto checked-in
@@ -162,8 +177,45 @@ exports.createWalkInToken = async (req, res, next) => {
       checkInTime: new Date()
     });
 
+    const populatedAppointment = await Appointment.findById(appointment._id)
+      .populate({
+        path: 'doctorId',
+        populate: [
+          { path: 'userId', select: 'name email phone avatar' },
+          { path: 'hospitalId', select: 'name city emergencyContact' }
+        ]
+      })
+      .populate('patientId', 'name phone email');
+
+    const doctorDisplayName = doctor.userId?.name || 'Assigned Physician';
+    const hospitalDisplayName = doctor.hospitalId?.name || 'HealthMS Smart Hospital';
+    const confirmationMessage = `Hello ${patientName}, your walk-in token at ${hospitalDisplayName} is confirmed with Dr. ${doctorDisplayName} (${doctor.specialty}). Your Token Number is #${tokenNumber} (${tokenCode}) at OPD Room: ${assignedRoom}. Please proceed to the waiting area.`;
+
+    // Multi-channel confirmation SMS & In-app alert
+    await sendNotification({
+      userId: user._id,
+      userPhone: phone,
+      userEmail: user.email,
+      type: 'appointment_booked',
+      title: 'Walk-in Token Confirmed',
+      message: confirmationMessage,
+      channel: 'all',
+      meta: {
+        appointmentId: appointment._id,
+        tokenNumber,
+        tokenCode,
+        roomNumber: assignedRoom,
+        doctorName: doctorDisplayName,
+        specialty: doctor.specialty
+      }
+    });
+
     const io = req.app.get('io');
-    await recalculateDoctorQueue(doctor._id, io);
+    if (io) {
+      await recalculateDoctorQueue(doctor._id, io);
+      io.to(`doctor_${doctor._id}`).emit('queue:updated', { doctorId: doctor._id });
+      io.emit('queue:refresh', { doctorId: doctor._id });
+    }
 
     await logAudit({
       userId: req.user._id,
@@ -172,10 +224,20 @@ exports.createWalkInToken = async (req, res, next) => {
       action: 'CREATE_WALK_IN_TOKEN',
       resourceType: 'Appointment',
       resourceId: appointment._id,
-      details: { tokenCode, patientName, doctorName: doctor.userId?.name }
+      details: { tokenCode, patientName, phone, doctorName: doctorDisplayName, roomNumber: assignedRoom }
     });
 
-    res.status(201).json({ success: true, appointment });
+    const appointmentData = populatedAppointment ? populatedAppointment.toObject() : appointment.toObject();
+    appointmentData.roomNumber = assignedRoom;
+    appointmentData.patientPhone = phone;
+
+    res.status(201).json({
+      success: true,
+      appointment: appointmentData,
+      messageSent: true,
+      smsTo: phone,
+      assignedRoom
+    });
   } catch (error) {
     next(error);
   }
