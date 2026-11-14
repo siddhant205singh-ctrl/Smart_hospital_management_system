@@ -33,7 +33,9 @@ import {
   AlertCircle,
   Copy,
   Check,
-  RefreshCw
+  RefreshCw,
+  Phone,
+  Mail
 } from 'lucide-react';
 
 export default function DoctorDirectory() {
@@ -238,7 +240,8 @@ export default function DoctorDirectory() {
       // Instant success display with token details & celebratory confetti
       setBookingSuccess({
         ...appt,
-        doctor: selectedDoctor
+        doctor: selectedDoctor,
+        patientPhone: appt?.patientPhone || appt?.patientId?.phone || user?.phone || ''
       });
 
       showToast(`🎉 Token #${appt.tokenNumber} generated successfully!`, 'success');
@@ -545,6 +548,22 @@ export default function DoctorDirectory() {
                     <img src={bookingSuccess.qrCode} alt="Token QR" className="w-32 h-32 border border-slate-200 dark:border-slate-700 rounded-2xl p-2 bg-white shadow-sm" />
                   </div>
                   <span className="text-[10px] text-slate-400 block">Show QR at hospital reception or self-service kiosk</span>
+                </div>
+
+                {/* Notification Confirmation Badge */}
+                <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-xs flex flex-col space-y-1 text-center">
+                  {(bookingSuccess.patientPhone || user?.phone) && (
+                    <div className="flex items-center justify-center space-x-1.5">
+                      <Phone className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                      <span>SMS & live queue alerts confirmed for <strong>{bookingSuccess.patientPhone || user?.phone}</strong></span>
+                    </div>
+                  )}
+                  {user?.email && (
+                    <div className="flex items-center justify-center space-x-1.5 text-[11px] text-emerald-700/80 dark:text-emerald-300/80">
+                      <Mail className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                      <span>Confirmation & e-ticket emailed to <strong>{user?.email}</strong></span>
+                    </div>
+                  )}
                 </div>
 
                 {(bookingSuccess.documentsCount > 0 || totalSharedCount > 0) && (

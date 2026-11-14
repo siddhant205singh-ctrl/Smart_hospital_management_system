@@ -145,10 +145,13 @@ export default function AdminDashboard() {
         roomNumber: submittedRoom,
         symptoms: walkinSymptoms.trim()
       });
+      const matchedDoctor = doctors.find(d => String(d._id) === String(res.data.appointment?.doctorId?._id || res.data.appointment?.doctorId || walkinDoctorId));
       setWalkinSuccess({
         ...res.data.appointment,
+        doctorId: matchedDoctor || res.data.appointment?.doctorId,
         patientPhone: res.data.appointment?.patientPhone || res.data.smsTo || res.data.appointment?.patientId?.phone || submittedPhone,
-        roomNumber: res.data.appointment?.roomNumber || res.data.assignedRoom || submittedRoom
+        roomNumber: res.data.appointment?.roomNumber || res.data.assignedRoom || submittedRoom,
+        patientName: res.data.appointment?.bookedForFamilyMember || res.data.appointment?.patientId?.name || walkinName.trim()
       });
       setWalkinName('');
       setWalkinPhone('');
@@ -159,6 +162,309 @@ export default function AdminDashboard() {
     } finally {
       setWalkinSubmitting(false);
     }
+  };
+
+  const handlePrintWalkinSlip = (tokenData) => {
+    if (!tokenData) return;
+
+    const doctorName = tokenData.doctorId?.userId?.name || 'Assigned Physician';
+    const specialty = tokenData.doctorId?.specialty || walkinSpecialty || 'General Medicine';
+    const roomNumber = tokenData.roomNumber || tokenData.doctorId?.roomNumber || 'OPD-101';
+    const patientName = tokenData.patientName || tokenData.bookedForFamilyMember || tokenData.patientId?.name || 'Walk-in Patient';
+    const patientPhone = tokenData.patientPhone || tokenData.patientId?.phone || 'Confidential';
+    const tokenNumber = tokenData.tokenNumber || '1';
+    const tokenCode = tokenData.tokenCode || `A-${tokenNumber}`;
+    const symptoms = tokenData.symptoms || '';
+    const hospitalName = tokenData.doctorId?.hospitalId?.name || 'HealthMS Smart Hospital';
+    const printDate = new Date().toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    });
+    const printTime = new Date().toLocaleTimeString('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+
+    const existingIframe = document.getElementById('walkin-print-frame');
+    if (existingIframe) {
+      existingIframe.remove();
+    }
+
+    const iframe = document.createElement('iframe');
+    iframe.id = 'walkin-print-frame';
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    iframe.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>Token_Slip_${tokenCode}</title>
+          <style>
+            @page {
+              size: 80mm auto;
+              margin: 4mm;
+            }
+            @media print {
+              html, body {
+                margin: 0;
+                padding: 0;
+                background: #ffffff !important;
+                color: #000000 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
+              .slip-wrapper {
+                border: 2px dashed #000000 !important;
+              }
+            }
+            * {
+              box-sizing: border-box;
+              margin: 0;
+              padding: 0;
+            }
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+              background: #ffffff;
+              color: #111827;
+              display: flex;
+              justify-content: center;
+              padding: 6px;
+            }
+            .slip-wrapper {
+              width: 100%;
+              max-width: 330px;
+              border: 2px dashed #334155;
+              border-radius: 12px;
+              padding: 16px 14px;
+              background: #ffffff;
+            }
+            .header {
+              text-align: center;
+              border-bottom: 2px solid #0f172a;
+              padding-bottom: 8px;
+              margin-bottom: 10px;
+            }
+            .hospital-title {
+              font-size: 14px;
+              font-weight: 800;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              color: #0d9488;
+            }
+            .hospital-sub {
+              font-size: 10px;
+              font-weight: 600;
+              color: #475569;
+              margin-top: 1px;
+            }
+            .datetime-row {
+              display: flex;
+              justify-content: space-between;
+              font-size: 9px;
+              font-weight: 600;
+              color: #64748b;
+              margin-top: 4px;
+            }
+            .token-hero {
+              background: #f0fdf4;
+              border: 2px solid #16a34a;
+              border-radius: 10px;
+              padding: 10px 6px;
+              text-align: center;
+              margin-bottom: 12px;
+            }
+            .token-title {
+              font-size: 10px;
+              font-weight: 800;
+              letter-spacing: 1.5px;
+              text-transform: uppercase;
+              color: #15803d;
+            }
+            .token-num {
+              font-size: 38px;
+              font-weight: 900;
+              line-height: 1;
+              color: #14532d;
+              margin: 3px 0;
+            }
+            .token-code {
+              font-size: 12px;
+              font-weight: 800;
+              color: #166534;
+            }
+            .status-badge {
+              display: inline-block;
+              margin-top: 4px;
+              font-size: 9px;
+              font-weight: 800;
+              background: #16a34a;
+              color: #ffffff;
+              padding: 2px 8px;
+              border-radius: 999px;
+              text-transform: uppercase;
+            }
+            .info-grid {
+              width: 100%;
+              border-collapse: collapse;
+              font-size: 11px;
+              margin-bottom: 10px;
+            }
+            .info-grid tr {
+              border-bottom: 1px dashed #e2e8f0;
+            }
+            .info-grid td {
+              padding: 5px 2px;
+              vertical-align: top;
+            }
+            .info-grid td.lbl {
+              color: #64748b;
+              font-weight: 600;
+              width: 38%;
+              font-size: 9.5px;
+              text-transform: uppercase;
+            }
+            .info-grid td.val {
+              font-weight: 700;
+              color: #0f172a;
+              text-align: right;
+            }
+            .room-val {
+              color: #0f766e;
+              font-size: 13px;
+              font-weight: 900;
+            }
+            .instructions {
+              background: #f8fafc;
+              border-left: 3px solid #0f766e;
+              padding: 6px 8px;
+              border-radius: 4px;
+              margin-bottom: 10px;
+            }
+            .instructions-heading {
+              font-size: 9px;
+              font-weight: 800;
+              text-transform: uppercase;
+              color: #0f172a;
+              margin-bottom: 2px;
+            }
+            .instructions-text {
+              font-size: 9px;
+              color: #475569;
+              line-height: 1.35;
+              padding-left: 12px;
+            }
+            .footer {
+              text-align: center;
+              border-top: 1px dashed #94a3b8;
+              padding-top: 8px;
+            }
+            .barcode-line {
+              font-family: 'Courier New', monospace;
+              font-size: 16px;
+              font-weight: 900;
+              letter-spacing: 3px;
+              color: #1e293b;
+              margin-bottom: 3px;
+            }
+            .footer-text {
+              font-size: 8px;
+              color: #64748b;
+              line-height: 1.3;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="slip-wrapper">
+            <div class="header">
+              <div class="hospital-title">${hospitalName}</div>
+              <div class="hospital-sub">OPD Reception & Consultation Slip</div>
+              <div class="datetime-row">
+                <span>Date: ${printDate}</span>
+                <span>Time: ${printTime}</span>
+              </div>
+            </div>
+
+            <div class="token-hero">
+              <div class="token-title">Consultation Token</div>
+              <div class="token-num">#${tokenNumber}</div>
+              <div class="token-code">${tokenCode}</div>
+              <div class="status-badge">Checked In ✓</div>
+            </div>
+
+            <table class="info-grid">
+              <tr>
+                <td class="lbl">Patient Name</td>
+                <td class="val">${patientName}</td>
+              </tr>
+              <tr>
+                <td class="lbl">Mobile Phone</td>
+                <td class="val">${patientPhone}</td>
+              </tr>
+              <tr>
+                <td class="lbl">Assigned Doctor</td>
+                <td class="val">${doctorName}</td>
+              </tr>
+              <tr>
+                <td class="lbl">Specialty</td>
+                <td class="val">${specialty}</td>
+              </tr>
+              <tr>
+                <td class="lbl">Assigned Room</td>
+                <td class="val room-val">Room ${roomNumber}</td>
+              </tr>
+              ${symptoms ? `
+              <tr>
+                <td class="lbl">Reason</td>
+                <td class="val" style="font-weight: normal; font-style: italic;">${symptoms}</td>
+              </tr>
+              ` : ''}
+            </table>
+
+            <div class="instructions">
+              <div class="instructions-heading">Patient Instructions</div>
+              <ol class="instructions-text">
+                <li>Proceed to <strong>Room ${roomNumber}</strong> waiting area.</li>
+                <li>Watch the OPD screens for your token call.</li>
+                <li>SMS / WhatsApp alerts will notify you when 2 patients remain.</li>
+              </ol>
+            </div>
+
+            <div class="footer">
+              <div class="barcode-line">||| | |||| | ||| || |||</div>
+              <div class="footer-text"><strong>Token Code: ${tokenCode}</strong> • Keep slip until consultation is complete</div>
+              <div class="footer-text">HealthMS Dynamic Queue Engine</div>
+            </div>
+          </div>
+
+          <script>
+            window.onload = function() {
+              setTimeout(function() {
+                window.focus();
+                window.print();
+                setTimeout(function() {
+                  if (window.parent && window.parent.document.body.contains(window.frameElement)) {
+                    window.parent.document.body.removeChild(window.frameElement);
+                  }
+                }, 1500);
+              }, 250);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    doc.close();
   };
 
   const handleUpdateFastTrack = async (e) => {
@@ -420,11 +726,12 @@ export default function AdminDashboard() {
               <div className="flex items-center space-x-2 pt-1">
                 <button
                   type="button"
-                  onClick={() => window.print()}
+                  onClick={() => handlePrintWalkinSlip(walkinSuccess)}
                   className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center space-x-1 transition shadow-xs"
+                  title="Print or Save PDF of the Token Slip only"
                 >
                   <Printer className="w-3.5 h-3.5" />
-                  <span>Print Token Slip</span>
+                  <span>Print Token Slip (PDF)</span>
                 </button>
                 <button
                   type="button"

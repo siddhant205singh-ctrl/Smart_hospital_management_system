@@ -5,9 +5,9 @@ const notificationSchema = new mongoose.Schema({
   type: { 
     type: String, 
     enum: [
-      'queue_update', 'leave_now', 'token_called', 'appointment_booked', 
+      'queue_update', 'leave_now', 'token_called', 'appointment_booked', 'appointment_confirmed', 'token_generated',
       'report_ready', 'reminder', 'blood_urgent_need', 'eligibility_restored',
-      'blood_shortage_alert', 'blood_alert_response', 'emergency_case', 'break_glass_alert', 'profile_update'
+      'blood_shortage_alert', 'blood_alert_response', 'emergency_case', 'break_glass_alert', 'profile_update', 'general'
     ],
     required: true 
   },

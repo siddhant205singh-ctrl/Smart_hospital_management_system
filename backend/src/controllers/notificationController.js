@@ -31,20 +31,26 @@ exports.markAsRead = async (req, res, next) => {
 };
 
 // @route   POST /api/notifications/test-sms
-// Sends an SMS queue update to any phone number (mocked Twilio interface)
+// Sends an SMS update or test message to any phone number
 exports.sendTestSms = async (req, res, next) => {
   try {
-    const { phone, tokenNumber, patientsAhead, estWaitMinutes } = req.body;
-    const body = `HealthMS Queue Alert: Your token is #${tokenNumber || 12}. ${patientsAhead || 3} patients ahead. Est. waiting time is ${estWaitMinutes || 25} minutes.`;
+    const { phone, message, tokenNumber, patientsAhead, estWaitMinutes } = req.body;
+    if (!phone) {
+      return res.status(400).json({ error: 'Mobile phone number is required.' });
+    }
+    const body = message || `HealthMS Queue Alert: Your token is #${tokenNumber || 12}. ${patientsAhead || 3} patients ahead. Est. waiting time is ${estWaitMinutes || 25} minutes.`;
 
     const smsResult = await twilioClient.messages.create({
-      to: phone || '+919876543210',
+      to: phone,
       body
     });
 
+    const isSuccess = smsResult && smsResult.status !== 'failed';
     res.json({
-      success: true,
-      message: 'SMS dispatched successfully via Twilio interface',
+      success: isSuccess,
+      message: isSuccess
+        ? `Message dispatched successfully via ${smsResult.provider || 'Twilio'} (${smsResult.status})`
+        : `Dispatch failed: ${smsResult?.error || 'Twilio error'}`,
       smsResult
     });
   } catch (error) {

@@ -54,3 +54,14 @@ html.large-font {
   0% { width: 100%; }
   100% { width: 0%; }
 }
+
+/* Print Styles: Hide background clutter, navbars, and buttons during print */
+@media print {
+  nav, aside, header, footer, button, .no-print {
+    display: none !important;
+  }
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+}
